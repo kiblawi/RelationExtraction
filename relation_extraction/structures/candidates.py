@@ -1,4 +1,35 @@
-#class objects for sentences and tokens
+import sys
+import os
+
+
+#class objects for tokens, dependencies, and sentences
+def dijkstra(adj_matrix, source):
+    distance = [+sys.maxint] * len(adj_matrix)  # Unknown distance function from source to v
+    previous = [-1] * len(adj_matrix)  # Previous node in optimal path from source
+    distance[source] = 0  # Distance from source to source
+    unreached = range(len(adj_matrix))  # All nodes in the graph are unoptimized -
+    # print distance
+    # print adj_matrix
+    # print source
+
+    while len(unreached) > 0:  # The main loop
+        u = distance.index(min(distance))  # Get the node closest to the source
+        # print unreached
+        # print u
+        if distance[u] == +sys.maxint:
+            break  # all remaining vertices are inaccessible
+        else:
+            unreached.remove(u)
+            for v in unreached:  # where v has not yet been removed from Q.
+                if adj_matrix[u][v] != '':
+                    alt = distance[u] + 1
+                    if alt < distance[v]:  # Relax (u,v,a)
+                        distance[v] = alt
+                        previous[v] = u
+            distance[u] = +sys.maxint  # Set the distance to u to inf so that it get's ignored in the next iteration
+    return previous
+
+
 
 class Token():
     def __init__(self, token_id, word, lemma, char_begin, char_end, pos, ner, normalized_ner=None):
@@ -22,15 +53,30 @@ class Token():
     def get_ner(self):
         return self.ner
 
+
+class Dependency():
+    def __init__(self, type, governor_token, dependent_token):
+        self.type = type
+        self.governor_token = governor_token
+        self.dependent_token = dependent_token
+
+    def print_dependency(self):
+        print(self.type + '\t' + self.governor_token.word + '\t' + self.dependent_token.word)
+
+    def get_type(self):
+        return self.type
+
+
 class Sentence():
     def __init__(self,sentence_id):
         '''Constructor for Sentence Object'''
         self.sentence_id=sentence_id
         self.tokens = []
         self.entities = {}
-        self.label = None
+        self.pairs = None
         self.dependencies = []
         self.dependency_matrix = None
+        self.dependency_paths = None
 
         #Create root token and initialize to first position
         root = Token('0','ROOT',None, None, None, None, None, None)
@@ -47,6 +93,15 @@ class Sentence():
     def print_entities(self):
         print(self.entities)
 
+    def generate_entity_pairs(self, entity_type_1, entity_type_2):
+        zip1 = zip(self.entities[entity_type_1], self.entities[entity_type_2])
+        zip2 = zip(self.entities[entity_type_2], self.entities[entity_type_1])
+        self.pairs = zip1 + zip2
+
+    def get_entity_pairs(self):
+        return self.pairs
+
+
     def print_sentence(self):
         '''Prints out the sentence'''
         sentence = ''
@@ -54,9 +109,6 @@ class Sentence():
             sentence = sentence + ' ' + self.tokens[t].word
         print(sentence)
 
-    def set_label(self,label):
-        '''Sets the label of the candidate sentence (positive/negative)'''
-        self.label = label
 
     def get_token(self,token_position):
         token_position = int(token_position)
@@ -77,23 +129,13 @@ class Sentence():
             type = dependency.get_type()
             self.dependency_matrix[governor_position][dependent_position]=type
             # add the reverse only if the slot is empty
-            if (self.dependency_matrix[dependent_position][governor_position] == ""):
+            if self.dependency_matrix[dependent_position][governor_position] == "":
                 self.dependency_matrix[dependent_position][governor_position] = "-" + type
+
 
     def print_dependency_matrix(self):
         print(self.dependency_matrix)
 
-class Dependency():
-    def __init__(self, type, governor_token, dependent_token):
-        self.type = type
-        self.governor_token = governor_token
-        self.dependent_token = dependent_token
-
-    def print_dependency(self):
-        print(self.type + '\t' + self.governor_token.word + '\t' + self.dependent_token.word)
-
-    def get_type(self):
-        return self.type
 
 
 

@@ -3,37 +3,7 @@ import sys
 from lxml import etree
 
 from structures.candidates import Token, Sentence, Dependency
-
-
-def Dijkstra(adj_matrix, source):
-    distance = [+sys.maxint] * len(adj_matrix)  # Unknown distance function from source to v
-    previous = [-1] * len(adj_matrix)  # Previous node in optimal path from source
-    distance[source] = 0  # Distance from source to source
-    unreached = range(len(adj_matrix))  # All nodes in the graph are unoptimized -
-    # print distance
-    # print adj_matrix
-    # print source
-
-    while len(unreached) > 0:  # The main loop
-        u = distance.index(min(distance))  # Get the node closest to the source
-        # print unreached
-        # print u
-        if distance[u] == +sys.maxint:
-            break  # all remaining vertices are inaccessible
-        else:
-            unreached.remove(u)
-            for v in unreached:  # where v has not yet been removed from Q.
-                if adj_matrix[u][v] != '':
-                    alt = distance[u] + 1
-                    if alt < distance[v]:  # Relax (u,v,a)
-                        distance[v] = alt
-                        previous[v] = u
-            distance[u] = +sys.maxint  # Set the distance to u to inf so that it get's ignored in the next iteration
-    return previous
-
-
-
-
+from structures.instances import Instance
 
 def main():
     tree = etree.parse(sys.argv[1])
@@ -44,8 +14,15 @@ def main():
 
     for sentence in sentences:
         candidate_sentence = Sentence(sentence.get('id'))
-        candidate_sentence.set_label('Positive')
         tokens = list(sentence.iter('token'))
+        elements = set()
+        if sentence.find('interaction') is not None:
+            interactions = sentence.find('interaction').text.split('|')
+            for i in interactions:
+                i_elements = set(i.split('-'))
+                elements = elements.union(i_elements)
+
+
         for token in tokens:
             normalized_ner = None
             if token.find('NormalizedNER') is not None:
@@ -63,16 +40,29 @@ def main():
             candidate_dep = Dependency(d.get('type'), candidate_sentence.get_token(d.find('governor').get('idx')), candidate_sentence.get_token(d.find('dependent').get('idx')))
             candidate_sentence.add_dependency(candidate_dep)
 
-        candidate_sentences.append(candidate_sentence)
+        candidate_sentence.generate_entity_pairs('HUMAN_GENE','VIRAL_GENE')
+        entity_pairs = candidate_sentence.get_entity_pairs()
+        candidate_sentence.build_dependency_matrix()
+        #candidate_sentence.initialize_dep_paths()
+
+        #print(entity_pairs)
+        for pair in entity_pairs:
+            if candidate_sentence.tokens[pair[0]].normalized_ner in elements and candidate_sentence.tokens[pair[1]].normalized_ner in elements:
+                candidate_instance = Instance(candidate_sentence, pair[0], pair[1], 'Positive')
+                candidate_instance.build_dependency_path()
+                candidate_sentences.append(candidate_instance)
+            else:
+                candidate_instance = Instance(candidate_sentence, pair[0], pair[1], 'Negative')
+                candidate_instance.build_dependency_path()
+                candidate_sentences.append(candidate_instance)
+
+
     for c in candidate_sentences:
-        c.print_sentence()
-        c.build_dependency_matrix()
-        c.print_dependency_matrix()
-        c.print_entities()
+        print(c.start)
+        print(c.end)
+        print(c.dependency_path)
+        print(c.label)
 
-
-    prev = Dijkstra(candidate_sentences[3].dependency_matrix,int(candidate_sentences[3].tokens[0].token_id))
-    print(prev)
 
 
 
