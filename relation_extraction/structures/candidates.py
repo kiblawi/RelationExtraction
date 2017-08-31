@@ -1,5 +1,5 @@
 import sys
-import os
+import itertools
 
 
 #class objects for tokens, dependencies, and sentences
@@ -53,6 +53,9 @@ class Token():
     def get_ner(self):
         return self.ner
 
+    def get_normalized_ner(self):
+        return self.normalized_ner
+
 
 class Dependency():
     def __init__(self, type, governor_token, dependent_token):
@@ -73,7 +76,7 @@ class Sentence():
         self.sentence_id=sentence_id
         self.tokens = []
         self.entities = {}
-        self.pairs = None
+        self.pairs = []
         self.dependencies = []
         self.dependency_matrix = None
         self.dependency_paths = None
@@ -82,21 +85,40 @@ class Sentence():
         root = Token('0','ROOT',None, None, None, None, None, None)
         self.tokens.append(root)
 
+    def get_last_token(self):
+        return self.tokens[-1]
+
     def add_token(self,token):
         '''Adds a token to sentence'''
+        previous_token = self.get_last_token()
         self.tokens.append(token)
-        if token.get_ner() is not None:
-            if token.get_ner() not in self.entities:
-                self.entities[token.get_ner()]=[]
-            self.entities[token.get_ner()].append(token.token_id)
+        if token.get_ner() not in self.entities:
+            self.entities[token.get_ner()] = []
+        if token.get_normalized_ner() is not None:
+            if token.get_normalized_ner() != previous_token.get_normalized_ner():
+                self.entities[token.get_ner()].append([token.get_token_id()])
+            else:
+                self.entities[token.get_ner()][-1].append(token.get_token_id())
+        else:
+            self.entities[token.get_ner()].append([token.get_token_id()])
+
 
     def print_entities(self):
         print(self.entities)
 
     def generate_entity_pairs(self, entity_type_1, entity_type_2):
-        zip1 = zip(self.entities[entity_type_1], self.entities[entity_type_2])
-        zip2 = zip(self.entities[entity_type_2], self.entities[entity_type_1])
-        self.pairs = zip1 + zip2
+        for pair in list(itertools.product(self.entities[entity_type_1], self.entities[entity_type_2])):
+            if max(pair[0]) > max(pair[1]):
+                self.pairs.append((pair[0][0],pair[1][-1]))
+            else:
+                self.pairs.append((pair[0][-1],pair[1][0]))
+
+        for pair in list(itertools.product(self.entities[entity_type_2], self.entities[entity_type_1])):
+            if max(pair[0]) > max(pair[1]):
+                self.pairs.append((pair[0][0], pair[1][-1]))
+            else:
+                self.pairs.append((pair[0][-1], pair[1][0]))
+
 
     def get_entity_pairs(self):
         return self.pairs
@@ -132,6 +154,8 @@ class Sentence():
             if self.dependency_matrix[dependent_position][governor_position] == "":
                 self.dependency_matrix[dependent_position][governor_position] = "-" + type
 
+    def get_dependency_type(self,start,end):
+        return self.dependency_matrix[start][end]
 
     def print_dependency_matrix(self):
         print(self.dependency_matrix)

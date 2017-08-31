@@ -36,7 +36,8 @@ class Instance():
         self.start = start
         self.end = end
         self.label = label
-        self.dependency_path = None
+        self.dependency_path = self.build_dependency_path()
+        self.type_dependency_path = self.build_type_dependency_path()
 
     def build_dependency_path(self):
         source_token_no = self.start
@@ -48,8 +49,16 @@ class Instance():
             while prev != source_token_no:
                 prev = previous[prev]
                 path.insert(0,prev)
-            self.dependency_path = path
+            return path
 
+    def build_type_dependency_path(self):
+        type_path = [self.sentence.get_token(self.start).get_ner()]
+        for i in range(len(self.dependency_path)-1):
+            dep_start = self.dependency_path[i]
+            dep_end = self.dependency_path[i+1]
+            type_path.append(self.sentence.get_dependency_type(dep_start,dep_end))
+        type_path.append(self.sentence.get_token(self.end).get_ner())
+        return type_path
 
     def set_label(self,label):
         '''Sets the label of the candidate sentence (positive/negative)'''

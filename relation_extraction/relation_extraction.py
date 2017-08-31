@@ -47,21 +47,29 @@ def main():
 
         #print(entity_pairs)
         for pair in entity_pairs:
+
             if candidate_sentence.tokens[pair[0]].normalized_ner in elements and candidate_sentence.tokens[pair[1]].normalized_ner in elements:
                 candidate_instance = Instance(candidate_sentence, pair[0], pair[1], 'Positive')
-                candidate_instance.build_dependency_path()
+                #candidate_instance.build_dependency_path()
                 candidate_sentences.append(candidate_instance)
             else:
                 candidate_instance = Instance(candidate_sentence, pair[0], pair[1], 'Negative')
-                candidate_instance.build_dependency_path()
+                #candidate_instance.build_dependency_path()
                 candidate_sentences.append(candidate_instance)
 
 
     for c in candidate_sentences:
+        print("****INSTANCE***")
         print(c.start)
         print(c.end)
+        c.sentence.print_entities()
+        c.sentence.print_sentence()
         print(c.dependency_path)
+        print(c.type_dependency_path)
         print(c.label)
+        #c.sentence.print_dependency_matrix()
+
+        print("------------")
 
 
 
