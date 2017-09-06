@@ -31,7 +31,7 @@ def dijkstra(adj_matrix, source):
 
 
 
-class Token():
+class Token(object):
     def __init__(self, token_id, word, lemma, char_begin, char_end, pos, ner, normalized_ner=None):
         '''Constructor for Token objects'''
         self.token_id = int(token_id)
@@ -43,9 +43,9 @@ class Token():
         self.ner = ner
         self.normalized_ner = normalized_ner
 
-    def print_word(self):
+    def get_word(self):
         '''Prints the word identified with the Token object'''
-        print(self.word)
+        return self.word
 
     def get_token_id(self):
         return self.token_id
@@ -56,8 +56,13 @@ class Token():
     def get_normalized_ner(self):
         return self.normalized_ner
 
+    def get_lemma(self):
+        return self.lemma
 
-class Dependency():
+    def get_pos(self):
+        return self.pos
+
+class Dependency(object):
     def __init__(self, type, governor_token, dependent_token):
         self.type = type
         self.governor_token = governor_token
@@ -70,7 +75,7 @@ class Dependency():
         return self.type
 
 
-class Sentence():
+class Sentence(object):
     def __init__(self,sentence_id):
         '''Constructor for Sentence Object'''
         self.sentence_id=sentence_id

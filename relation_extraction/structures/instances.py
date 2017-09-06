@@ -30,7 +30,7 @@ def dijkstra(adj_matrix, source):
 
 
 
-class Instance():
+class Instance(object):
     def __init__(self,sentence, start, end, label):
         self.sentence = sentence
         self.start = start
@@ -52,12 +52,27 @@ class Instance():
             return path
 
     def build_type_dependency_path(self):
-        type_path = [self.sentence.get_token(self.start).get_ner()]
+        first_token = self.sentence.get_token(self.start)
+        final_token = self.sentence.get_token(self.end)
+        type_path = [first_token.get_word(), first_token.get_lemma(), first_token.get_ner(), first_token.get_pos()]
         for i in range(len(self.dependency_path)-1):
             dep_start = self.dependency_path[i]
             dep_end = self.dependency_path[i+1]
-            type_path.append(self.sentence.get_dependency_type(dep_start,dep_end))
-        type_path.append(self.sentence.get_token(self.end).get_ner())
+            dep_type = self.sentence.get_dependency_type(dep_start,dep_end)
+            next_token = self.sentence.get_token(dep_end)
+            current_token = self.sentence.get_token(dep_start)
+            features = [dep_type, next_token.get_word()]
+            if i == 0 and next_token != final_token:
+                features = [dep_type, next_token.get_word(), next_token.get_lemma(), next_token.get_pos()]
+            elif i ==0 and next_token == final_token:
+                features = [dep_type, next_token.get_word(), next_token.get_lemma(), next_token.get_ner(), next_token.get_pos()]
+
+            if i == len(self.dependency_path)-2 and current_token != first_token:
+                features = [current_token.get_lemma(), current_token.get_pos(), dep_type, next_token.get_word(), next_token.get_lemma(), next_token.get_ner(), next_token.get_pos()]
+            elif i == len(self.dependency_path)-2 and current_token == first_token:
+                features = [dep_type, next_token.get_word(), next_token.get_lemma(), next_token.get_ner(), next_token.get_pos()]
+            type_path = type_path + features
+
         return type_path
 
     def set_label(self,label):
