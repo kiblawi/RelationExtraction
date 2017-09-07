@@ -32,14 +32,16 @@ def main():
             normalized_ner = None
             if token.find('NormalizedNER') is not None:
                 normalized_ner = token.find('NormalizedNER').text
-                token_word = token.find('word').text
-                token_lemma = token.find('lemma').text
-                token_pos = token.find('POS').text
-                token_ner = token.find('NER').text
-                vocabulary.append(token_word)
-                vocabulary.append(token_lemma)
-                vocabulary.append(token_pos)
-                vocabulary.append(token_ner)
+
+            token_word = token.find('word').text
+            token_lemma = token.find('lemma').text
+            token_pos = token.find('POS').text
+            token_ner = token.find('NER').text
+            vocabulary.append(token_word)
+            vocabulary.append(token_lemma)
+            vocabulary.append(token_pos)
+            vocabulary.append(token_ner)
+
             candidate_token = Token(token.get('id'), token.find('word').text, token.find('lemma').text, token.find('CharacterOffsetBegin').text,
                                     token.find('CharacterOffsetEnd').text, token.find('POS').text, token.find('NER').text, normalized_ner)
             candidate_sentence.add_token(candidate_token)
@@ -90,12 +92,11 @@ def main():
 
 
 
-
-    final_embeddings = w2v.run_word2vec(vocabulary,500)
+    print(len(set(vocabulary)))
+    final_embeddings = w2v.run_word2vec(vocabulary,len(set(vocabulary))-10)
+    print(final_embeddings)
     print(len(final_embeddings))
     print(len(final_embeddings[0]))
-    print(len(final_embeddings[1]))
-
 
 
 
