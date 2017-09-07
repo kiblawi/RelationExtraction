@@ -5,11 +5,16 @@ from lxml import etree
 from structures.candidates import Token, Sentence, Dependency
 from structures.instances import Instance
 
+import learning.word2vec as w2v
+
+
 def main():
     tree = etree.parse(sys.argv[1])
     root = tree.getroot()
     candidate_sentences = []
     sentences = list(root.iter('sentence'))
+
+    vocabulary = []
 
 
     for sentence in sentences:
@@ -27,6 +32,14 @@ def main():
             normalized_ner = None
             if token.find('NormalizedNER') is not None:
                 normalized_ner = token.find('NormalizedNER').text
+                token_word = token.find('word').text
+                token_lemma = token.find('lemma').text
+                token_pos = token.find('POS').text
+                token_ner = token.find('NER').text
+                vocabulary.append(token_word)
+                vocabulary.append(token_lemma)
+                vocabulary.append(token_pos)
+                vocabulary.append(token_ner)
             candidate_token = Token(token.get('id'), token.find('word').text, token.find('lemma').text, token.find('CharacterOffsetBegin').text,
                                     token.find('CharacterOffsetEnd').text, token.find('POS').text, token.find('NER').text, normalized_ner)
             candidate_sentence.add_token(candidate_token)
@@ -39,6 +52,10 @@ def main():
         for d in deps:
             candidate_dep = Dependency(d.get('type'), candidate_sentence.get_token(d.find('governor').get('idx')), candidate_sentence.get_token(d.find('dependent').get('idx')))
             candidate_sentence.add_dependency(candidate_dep)
+            dep_type = d.get('type')
+            rev_dep_type = "-" + dep_type
+            vocabulary.append(dep_type)
+            vocabulary.append(rev_dep_type)
 
         candidate_sentence.generate_entity_pairs('HUMAN_GENE','VIRAL_GENE')
         entity_pairs = candidate_sentence.get_entity_pairs()
@@ -70,6 +87,15 @@ def main():
         #c.sentence.print_dependency_matrix()
 
         print("------------")
+
+
+
+
+    final_embeddings = w2v.run_word2vec(vocabulary,500)
+    print(len(final_embeddings))
+    print(len(final_embeddings[0]))
+    print(len(final_embeddings[1]))
+
 
 
 
