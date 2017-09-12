@@ -15,6 +15,7 @@ def main():
     sentences = list(root.iter('sentence'))
 
     vocabulary = []
+    word_vocabulary = []
 
 
     for sentence in sentences:
@@ -82,22 +83,24 @@ def main():
         print(c.type_dependency_path)
         print(c.label)
         vocabulary.append(''.join(x for x in c.get_type_dependency_path()))
+        if c.label == 'Positive':
+            word_vocabulary = word_vocabulary + c.get_word_path()
         #c.sentence.print_dependency_matrix()
 
         print("------------")
 
 
 
-    print(len(vocabulary))
+    print(len(word_vocabulary))
     #final_embeddings = w2v.run_word2vec(vocabulary,len(set(vocabulary))-10)
-    data, count, dictionary, reverse_dictionary = w2v.build_dataset(vocabulary, len(set(vocabulary))-10)
+    data, count, dictionary, reverse_dictionary = w2v.build_dataset(word_vocabulary, len(set(word_vocabulary))-10)
     print(data)
     print(count)
     print(dictionary)
     print(reverse_dictionary)
-    #print(final_embeddings)
-    #print(len(final_embeddings))
-    #print(len(final_embeddings[0]))
+    sorted_results = sorted(count, key=lambda x: x[1])
+    for s in sorted_results:
+        print(s)
 
 
 

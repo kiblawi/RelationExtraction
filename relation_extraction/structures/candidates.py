@@ -87,7 +87,7 @@ class Sentence(object):
         self.dependency_paths = None
 
         #Create root token and initialize to first position
-        root = Token('0','ROOT',None, None, None, None, None, None)
+        root = Token('0','ROOT','ROOT', None, None, None, None, None)
         self.tokens.append(root)
 
     def get_last_token(self):
@@ -118,12 +118,13 @@ class Sentence(object):
             else:
                 self.pairs.append((pair[0][-1],pair[1][0]))
 
+        '''
         for pair in list(itertools.product(self.entities[entity_type_2], self.entities[entity_type_1])):
             if max(pair[0]) > max(pair[1]):
                 self.pairs.append((pair[0][0], pair[1][-1]))
             else:
                 self.pairs.append((pair[0][-1], pair[1][0]))
-
+        '''
 
     def get_entity_pairs(self):
         return self.pairs
