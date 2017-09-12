@@ -63,7 +63,7 @@ def main():
         #print(entity_pairs)
         for pair in entity_pairs:
 
-            if candidate_sentence.tokens[pair[0]].normalized_ner in elements and candidate_sentence.tokens[pair[1]].normalized_ner in elements:
+            if candidate_sentence._tokens[pair[0]].get_normalized_ner() in elements and candidate_sentence._tokens[pair[1]].get_normalized_ner() in elements:
                 candidate_instance = Instance(candidate_sentence, pair[0], pair[1], 'Positive')
                 #candidate_instance.build_dependency_path()
                 candidate_sentences.append(candidate_instance)
@@ -75,15 +75,15 @@ def main():
 
     for c in candidate_sentences:
         print("****INSTANCE***")
-        print(c.start)
-        print(c.end)
-        c.sentence.print_entities()
-        c.sentence.print_sentence()
-        print(c.dependency_path)
-        print(c.type_dependency_path)
-        print(c.label)
+        print(c.get_start())
+        print(c.get_end())
+        c.get_sentence().print_entities()
+        print c.get_sentence().get_sentence_string()
+        print(c.get_dependency_path())
+        print(c.get_type_dependency_path())
+        print(c.get_label())
         vocabulary.append(''.join(x for x in c.get_type_dependency_path()))
-        if c.label == 'Positive':
+        if c.get_label() == 'Positive':
             word_vocabulary = word_vocabulary + c.get_word_path()
         #c.sentence.print_dependency_matrix()
 
