@@ -2,7 +2,7 @@ import os
 import sys
 from lxml import etree
 
-from structures.candidates import Token, Sentence, Dependency
+from structures.sentence_structure import Token, Sentence, Dependency
 from structures.instances import Instance
 
 import learning.word2vec as w2v
@@ -63,7 +63,7 @@ def main():
         #print(entity_pairs)
         for pair in entity_pairs:
 
-            if candidate_sentence._tokens[pair[0]].get_normalized_ner() in elements and candidate_sentence._tokens[pair[1]].get_normalized_ner() in elements:
+            if candidate_sentence.tokens[pair[0]].get_normalized_ner() in elements and candidate_sentence.tokens[pair[1]].get_normalized_ner() in elements:
                 candidate_instance = Instance(candidate_sentence, pair[0], pair[1], 'Positive')
                 #candidate_instance.build_dependency_path()
                 candidate_sentences.append(candidate_instance)
