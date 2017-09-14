@@ -39,7 +39,7 @@ def load_xml(xml_file):
     candidate_sentences = []
     sentences = list(root.iter('sentence'))
 
-    vocabulary = []
+
     word_vocabulary = []
 
 
@@ -94,24 +94,23 @@ def load_xml(xml_file):
 
 
     for c in candidate_sentences:
-        print("****INSTANCE***")
-        print(c.get_start())
-        print(c.get_end())
-        c.get_sentence().print_entities()
-        print c.get_sentence().get_sentence_string()
-        print(c.get_dependency_path())
-        print(c.get_type_dependency_path())
-        print(c.get_label())
-        vocabulary.append(''.join(x for x in c.get_type_dependency_path()))
         if c.get_label() == 'Positive':
             word_vocabulary = word_vocabulary + c.get_word_path()
-        #c.sentence.print_dependency_matrix()
 
-        print("------------")
+    word_vocabulary_size = int(len(set(word_vocabulary)) * 0.8)
+
+    data, count, dictionary, reversed_dictionary = build_dataset(word_vocabulary, word_vocabulary_size)
+
+    print(count)
+    for d in dictionary:
+        print(d)
+        print(dictionary[d])
+    for d in reversed_dictionary:
+        print(d)
+        print(reversed_dictionary[d])
 
 
 
-    print(len(word_vocabulary))
-    return candidate_sentences
-    #final_embeddings = w2v.run_word2vec(vocabulary,len(set(vocabulary))-10)
+
+
 
