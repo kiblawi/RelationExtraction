@@ -1,0 +1,117 @@
+import os
+import sys
+import collections
+import math
+import random
+import numpy as np
+import tensorflow as tf
+
+from six.moves import xrange  # pylint: disable=redefined-builtin
+from lxml import etree
+
+from structures.sentence_structure import Sentence, Token, Dependency
+from structures.instances import Instance
+
+def build_dataset(words, n_words):
+    """Process raw inputs into a dataset."""
+    count = [['UNK', -1]]
+    count.extend(collections.Counter(words).most_common(n_words - 1))
+    dictionary = dict()
+    for word, _ in count:
+        dictionary[word] = len(dictionary)
+    data = list()
+    unk_count = 0
+    for word in words:
+        if word in dictionary:
+            index = dictionary[word]
+        else:
+            index = 0  # dictionary['UNK']
+            unk_count += 1
+        data.append(index)
+    count[0][1] = unk_count
+    reversed_dictionary = dict(zip(dictionary.values(), dictionary.keys()))
+    return data, count, dictionary, reversed_dictionary
+
+
+def load_xml(xml_file):
+    tree = etree.parse(xml_file)
+    root = tree.getroot()
+    candidate_sentences = []
+    sentences = list(root.iter('sentence'))
+
+    vocabulary = []
+    word_vocabulary = []
+
+
+    for sentence in sentences:
+        candidate_sentence = Sentence(sentence.get('id'))
+        tokens = list(sentence.iter('token'))
+        elements = set()
+        if sentence.find('interaction') is not None:
+            interactions = sentence.find('interaction').text.split('|')
+            for i in interactions:
+                i_elements = set(i.split('-'))
+                elements = elements.union(i_elements)
+
+
+        for token in tokens:
+            normalized_ner = None
+            if token.find('NormalizedNER') is not None:
+                normalized_ner = token.find('NormalizedNER').text
+
+            candidate_token = Token(token.get('id'), token.find('word').text, token.find('lemma').text, token.find('CharacterOffsetBegin').text,
+                                    token.find('CharacterOffsetEnd').text, token.find('POS').text, token.find('NER').text, normalized_ner)
+            candidate_sentence.add_token(candidate_token)
+
+
+
+        dependencies = list(sentence.iter('dependencies'))
+        basic_dependencies = dependencies[0]
+        deps = list(basic_dependencies.iter('dep'))
+        for d in deps:
+            candidate_dep = Dependency(d.get('type'), candidate_sentence.get_token(d.find('governor').get('idx')), candidate_sentence.get_token(d.find('dependent').get('idx')))
+            candidate_sentence.add_dependency(candidate_dep)
+            dep_type = d.get('type')
+            rev_dep_type = "-" + dep_type
+
+
+        candidate_sentence.generate_entity_pairs('HUMAN_GENE','VIRAL_GENE')
+        entity_pairs = candidate_sentence.get_entity_pairs()
+        candidate_sentence.build_dependency_matrix()
+        #candidate_sentence.initialize_dep_paths()
+
+        #print(entity_pairs)
+        for pair in entity_pairs:
+
+            if candidate_sentence.tokens[pair[0]].get_normalized_ner() in elements and candidate_sentence.tokens[pair[1]].get_normalized_ner() in elements:
+                candidate_instance = Instance(candidate_sentence, pair[0], pair[1], 'Positive')
+                #candidate_instance.build_dependency_path()
+                candidate_sentences.append(candidate_instance)
+            else:
+                candidate_instance = Instance(candidate_sentence, pair[0], pair[1], 'Negative')
+                #candidate_instance.build_dependency_path()
+                candidate_sentences.append(candidate_instance)
+
+
+    for c in candidate_sentences:
+        print("****INSTANCE***")
+        print(c.get_start())
+        print(c.get_end())
+        c.get_sentence().print_entities()
+        print c.get_sentence().get_sentence_string()
+        print(c.get_dependency_path())
+        print(c.get_type_dependency_path())
+        print(c.get_label())
+        vocabulary.append(''.join(x for x in c.get_type_dependency_path()))
+        if c.get_label() == 'Positive':
+            word_vocabulary = word_vocabulary + c.get_word_path()
+        #c.sentence.print_dependency_matrix()
+
+        print("------------")
+
+
+
+    print(len(word_vocabulary))
+    return candidate_sentences
+    #final_embeddings = w2v.run_word2vec(vocabulary,len(set(vocabulary))-10)
+
