@@ -78,7 +78,6 @@ def load_xml(xml_file):
         candidate_sentence.generate_entity_pairs('HUMAN_GENE','VIRAL_GENE')
         entity_pairs = candidate_sentence.get_entity_pairs()
         candidate_sentence.build_dependency_matrix()
-        #candidate_sentence.initialize_dep_paths()
 
         #print(entity_pairs)
         for pair in entity_pairs:
@@ -97,17 +96,34 @@ def load_xml(xml_file):
         if c.get_label() == 'Positive':
             word_vocabulary = word_vocabulary + c.get_word_path()
 
-    word_vocabulary_size = int(len(set(word_vocabulary)) * 0.8)
+    word_vocabulary_size = int(len(set(word_vocabulary)))
 
     data, count, dictionary, reversed_dictionary = build_dataset(word_vocabulary, word_vocabulary_size)
 
-    print(count)
-    for d in dictionary:
-        print(d)
-        print(dictionary[d])
-    for d in reversed_dictionary:
-        print(d)
-        print(reversed_dictionary[d])
+    common_words_file = open('./data/common_words.txt','rU')
+    lines = common_words_file.readlines()
+    common_words_file.close()
+
+    common_words = set()
+    for l in lines:
+        common_words.add(l.split()[0])
+
+
+    feature_words = set()
+    feature_pos_array = {}
+    array_place = 0
+    for c in count:
+        if c[0] not in common_words and int(c[1]) >= 10:
+            feature_words.add(c[0])
+            feature_pos_array[c[0]] = array_place
+            array_place += 1
+    print(feature_pos_array)
+    for c in candidate_sentences:
+        c.build_common_word_features(feature_words,feature_pos_array)
+
+
+
+
 
 
 
