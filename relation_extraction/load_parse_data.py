@@ -12,6 +12,7 @@ from lxml import etree
 from structures.sentence_structure import Sentence, Token, Dependency
 from structures.instances import Instance
 
+
 def build_dataset(words, n_words):
     """Process raw inputs into a dataset."""
     count = [['UNK', -1]]
@@ -39,7 +40,8 @@ def load_xml(xml_file):
     candidate_sentences = []
     sentences = list(root.iter('sentence'))
 
-
+    word_vocabulary = []
+    dep_type_vocabulary = []
 
 
     for sentence in sentences:
@@ -70,41 +72,26 @@ def load_xml(xml_file):
         for d in deps:
             candidate_dep = Dependency(d.get('type'), candidate_sentence.get_token(d.find('governor').get('idx')), candidate_sentence.get_token(d.find('dependent').get('idx')))
             candidate_sentence.add_dependency(candidate_dep)
-            dep_type = d.get('type')
-            rev_dep_type = "-" + dep_type
-
 
         candidate_sentence.generate_entity_pairs('HUMAN_GENE','VIRAL_GENE')
         entity_pairs = candidate_sentence.get_entity_pairs()
         candidate_sentence.build_dependency_matrix()
 
-        #print(entity_pairs)
         for pair in entity_pairs:
-
             if candidate_sentence.tokens[pair[0]].get_normalized_ner() in elements and candidate_sentence.tokens[pair[1]].get_normalized_ner() in elements:
                 candidate_instance = Instance(candidate_sentence, pair[0], pair[1], 'Positive')
-                #candidate_instance.build_dependency_path()
                 candidate_sentences.append(candidate_instance)
+                word_vocabulary += candidate_instance.get_word_path()
+                dep_type_vocabulary.append(''.join(candidate_instance.get_type_dependency_path()))
             else:
                 candidate_instance = Instance(candidate_sentence, pair[0], pair[1], 'Negative')
-                #candidate_instance.build_dependency_path()
                 candidate_sentences.append(candidate_instance)
-
-    word_vocabulary = []
-    dep_type_vocabulary = []
-    for c in candidate_sentences:
-        if c.get_label() == 'Positive':
-            word_vocabulary += c.get_word_path()
-            dep_type_vocabulary.append(''.join(c.get_type_dependency_path()))
-
 
     dep_type_vocabulary_size = int(len(set(dep_type_vocabulary)))
     word_vocabulary_size = int(len(set(word_vocabulary)))
 
     data, count, dictionary, reversed_dictionary = build_dataset(word_vocabulary, word_vocabulary_size)
     dep_data, dep_count, dep_dictionary, dep_reversed_dictionary = build_dataset(dep_type_vocabulary, dep_type_vocabulary_size)
-
-
 
     common_words_file = open('./static_data/common_words.txt','rU')
     lines = common_words_file.readlines()
@@ -113,7 +100,6 @@ def load_xml(xml_file):
     common_words = set()
     for l in lines:
         common_words.add(l.split()[0])
-
 
     feature_words = set()
     feature_pos_array = {}
