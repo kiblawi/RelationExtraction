@@ -1,7 +1,6 @@
 import sys
 import itertools
 
-
 #class objects for tokens, dependencies, and sentences
 
 class Token(object):
