@@ -83,7 +83,7 @@ def run_word2vec(vocabulary, vocabulary_size):
 
     with graph.as_default():
 
-        # Input data.
+        # Input static_data.
         train_inputs = tf.placeholder(tf.int32, shape=[batch_size])
         train_labels = tf.placeholder(tf.int32, shape=[batch_size, 1])
         valid_dataset = tf.constant(valid_examples, dtype=tf.int32)

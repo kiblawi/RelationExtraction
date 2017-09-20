@@ -100,7 +100,7 @@ def load_xml(xml_file):
 
     data, count, dictionary, reversed_dictionary = build_dataset(word_vocabulary, word_vocabulary_size)
 
-    common_words_file = open('./data/common_words.txt','rU')
+    common_words_file = open('./static_data/common_words.txt','rU')
     lines = common_words_file.readlines()
     common_words_file.close()
 

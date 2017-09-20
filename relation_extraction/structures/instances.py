@@ -40,7 +40,10 @@ class Instance(object):
         self.label = label
         self.dependency_path = self.build_dependency_path()
         self.type_dependency_path = self.build_type_dependency_path()
-        self.word_path = self.build_word_path()
+        self.word_path = []
+        self.word_set = set()
+        self.build_word_path_and_set()
+        self.word_features = []
 
 
     def build_dependency_path(self):
@@ -79,13 +82,24 @@ class Instance(object):
         return self.type_dependency_path
 
 
-    def build_word_path(self):
+    def build_word_path_and_set(self):
         '''Builds dependency path of lexicalized words in path'''
         word_path = []
-        for i in range(len(self.dependency_path)):
-            current_word = self.sentence.get_token(i).get_lemma()
+        for i in range(1,len(self.dependency_path)-1):
+            current_pos = self.dependency_path[i]
+            current_word = self.sentence.get_token(current_pos).get_lemma()
             word_path.append(current_word)
-        return word_path
+        self.word_path = word_path
+        self.word_set = set(word_path)
+
+    def build_common_word_features(self, feature_words, feature_pos_array):
+        self.word_features = [0] * len(feature_words)
+        intersection_set = feature_words.intersection(self.word_set)
+        for i in intersection_set:
+            self.word_features[feature_pos_array[i]] = 1
+        print(self.word_features)
+
+
 
     def get_word_path(self):
         '''Returns word path'''
