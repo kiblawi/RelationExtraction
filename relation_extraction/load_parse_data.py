@@ -13,10 +13,19 @@ from structures.sentence_structure import Sentence, Token, Dependency
 from structures.instances import Instance
 
 
-def build_dataset(words, n_words):
+def build_dataset(words, occur_count = None):
     """Process raw inputs into a dataset."""
+    num_total_words = len(set(words))
+    discard_count = 0
+    if occur_count is not None:
+        for c in collections.Counter(words):
+            if collections.Counter(words)[c] < occur_count:
+                discard_count +=1
+
+    num_words = num_total_words - discard_count
+
     count = [['UNK', -1]]
-    count.extend(collections.Counter(words).most_common(n_words - 1))
+    count.extend(collections.Counter(words).most_common(num_words))
     dictionary = dict()
     for word, _ in count:
         dictionary[word] = len(dictionary)
@@ -35,11 +44,10 @@ def build_dataset(words, n_words):
 
 
 def feature_construction(dep_type_vocabulary, word_vocabulary, candidate_sentences):
-    dep_type_vocabulary_size = int(len(set(dep_type_vocabulary)))
-    word_vocabulary_size = int(len(set(word_vocabulary)))
 
-    data, count, dictionary, reversed_dictionary = build_dataset(word_vocabulary, word_vocabulary_size)
-    dep_data, dep_count, dep_dictionary, dep_reversed_dictionary = build_dataset(dep_type_vocabulary, dep_type_vocabulary_size)
+    data, count, dictionary, reversed_dictionary = build_dataset(word_vocabulary, 10)
+    dep_data, dep_count, dep_dictionary, dep_reversed_dictionary = build_dataset(dep_type_vocabulary, 2)
+
 
     common_words_file = open('./static_data/common_words.txt','rU')
     lines = common_words_file.readlines()
@@ -48,20 +56,20 @@ def feature_construction(dep_type_vocabulary, word_vocabulary, candidate_sentenc
     common_words = set()
     for l in lines:
         common_words.add(l.split()[0])
+    common_words.add('UNK')
 
-    feature_words = set()
-    feature_pos_array = {}
+    word_dictionary = {}
     array_place = 0
     for c in count:
-        if c[0] not in common_words and int(c[1]) >= 10:
-            feature_words.add(c[0])
-            feature_pos_array[c[0]] = array_place
+        if c[0] not in common_words:
+            word_dictionary[c[0]] = array_place
             array_place += 1
 
-    for c in candidate_sentences:
-        c.build_features(feature_words,feature_pos_array, dep_dictionary)
 
-    return candidate_sentences
+    for cs in candidate_sentences:
+        cs.build_features(word_dictionary, dep_dictionary)
+
+    return candidate_sentences, word_dictionary, dep_dictionary
 
 def load_xml(xml_file):
     tree = etree.parse(xml_file)
@@ -69,8 +77,8 @@ def load_xml(xml_file):
     candidate_sentences = []
     sentences = list(root.iter('sentence'))
 
-    word_vocabulary = []
-    dep_type_vocabulary = []
+    all_word_vocabulary = []
+    all_dep_type_vocabulary = []
 
 
     for sentence in sentences:
@@ -108,10 +116,10 @@ def load_xml(xml_file):
             if candidate_sentence.tokens[pair[0]].get_normalized_ner() in elements and candidate_sentence.tokens[pair[1]].get_normalized_ner() in elements:
                 candidate_instance = Instance(candidate_sentence, pair[0], pair[1], 'Positive')
                 candidate_sentences.append(candidate_instance)
-                word_vocabulary += candidate_instance.get_word_path()
-                dep_type_vocabulary.append(''.join(candidate_instance.get_type_dependency_path()))
+                all_word_vocabulary += candidate_instance.get_word_path()
+                all_dep_type_vocabulary.append(''.join(candidate_instance.get_type_dependency_path()))
             else:
                 candidate_instance = Instance(candidate_sentence, pair[0], pair[1], 'Negative')
                 candidate_sentences.append(candidate_instance)
 
-    return dep_type_vocabulary, word_vocabulary, candidate_sentences
+    return all_dep_type_vocabulary, all_word_vocabulary, candidate_sentences

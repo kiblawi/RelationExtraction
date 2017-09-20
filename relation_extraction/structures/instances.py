@@ -94,18 +94,18 @@ class Instance(object):
         self.word_path = word_path
         self.word_set = set(word_path)
 
-    def build_features(self, feature_words, feature_pos_array, dep_dictionary):
-        self.word_features = [0] * len(feature_words)
+    def build_features(self, word_dictionary, dep_dictionary):
+        self.word_features = [0] * len(word_dictionary)
         self.dep_features = [0] * len(dep_dictionary)
+        feature_words = set(word_dictionary.keys())
         intersection_set = feature_words.intersection(self.word_set)
         for i in intersection_set:
-            self.word_features[feature_pos_array[i]] = 1
+            self.word_features[word_dictionary[i]] = 1
         dep_path_string = ''.join(self.type_dependency_path)
         if dep_path_string not in dep_dictionary:
             dep_path_string = 'UNK'
         self.dep_features[dep_dictionary[dep_path_string]] = 1
         self.features = self.dep_features + self.word_features
-
 
 
 
