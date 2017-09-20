@@ -57,7 +57,7 @@ def feature_construction(dep_type_vocabulary, word_vocabulary, candidate_sentenc
             feature_words.add(c[0])
             feature_pos_array[c[0]] = array_place
             array_place += 1
-    print(feature_pos_array)
+
     for c in candidate_sentences:
         c.build_features(feature_words,feature_pos_array, dep_dictionary)
 
