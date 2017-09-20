@@ -4,7 +4,10 @@ import load_parse_data
 
 
 def main():
-    load_parse_data.load_xml(sys.argv[1])
+    dep_type_vocabulary, word_vocabulary, candidate_sentences = load_parse_data.load_xml(sys.argv[1])
+    training_instances = load_parse_data.feature_construction(dep_type_vocabulary, word_vocabulary, candidate_sentences)
+    for t in training_instances:
+        print(t.features)
 
 
 if __name__=="__main__":

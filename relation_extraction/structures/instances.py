@@ -105,8 +105,7 @@ class Instance(object):
             dep_path_string = 'UNK'
         self.dep_features[dep_dictionary[dep_path_string]] = 1
         self.features = self.dep_features + self.word_features
-        print(self.features)
-        print(len(self.features))
+
 
 
 
