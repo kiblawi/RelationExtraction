@@ -40,7 +40,6 @@ def load_xml(xml_file):
     sentences = list(root.iter('sentence'))
 
 
-    word_vocabulary = []
 
 
     for sentence in sentences:
@@ -91,14 +90,21 @@ def load_xml(xml_file):
                 #candidate_instance.build_dependency_path()
                 candidate_sentences.append(candidate_instance)
 
-
+    word_vocabulary = []
+    dep_type_vocabulary = []
     for c in candidate_sentences:
         if c.get_label() == 'Positive':
-            word_vocabulary = word_vocabulary + c.get_word_path()
+            word_vocabulary += c.get_word_path()
+            dep_type_vocabulary.append(''.join(c.get_type_dependency_path()))
 
+
+    dep_type_vocabulary_size = int(len(set(dep_type_vocabulary)))
     word_vocabulary_size = int(len(set(word_vocabulary)))
 
     data, count, dictionary, reversed_dictionary = build_dataset(word_vocabulary, word_vocabulary_size)
+    dep_data, dep_count, dep_dictionary, dep_reversed_dictionary = build_dataset(dep_type_vocabulary, dep_type_vocabulary_size)
+
+
 
     common_words_file = open('./static_data/common_words.txt','rU')
     lines = common_words_file.readlines()
@@ -119,7 +125,7 @@ def load_xml(xml_file):
             array_place += 1
     print(feature_pos_array)
     for c in candidate_sentences:
-        c.build_common_word_features(feature_words,feature_pos_array)
+        c.build_features(feature_words,feature_pos_array, dep_dictionary)
 
 
 

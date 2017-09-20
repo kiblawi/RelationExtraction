@@ -44,6 +44,8 @@ class Instance(object):
         self.word_set = set()
         self.build_word_path_and_set()
         self.word_features = []
+        self.dep_features = []
+        self.features = []
 
 
     def build_dependency_path(self):
@@ -92,12 +94,18 @@ class Instance(object):
         self.word_path = word_path
         self.word_set = set(word_path)
 
-    def build_common_word_features(self, feature_words, feature_pos_array):
+    def build_features(self, feature_words, feature_pos_array, dep_dictionary):
         self.word_features = [0] * len(feature_words)
+        self.dep_features = [0] * len(dep_dictionary)
         intersection_set = feature_words.intersection(self.word_set)
         for i in intersection_set:
             self.word_features[feature_pos_array[i]] = 1
-        print(self.word_features)
+        dep_path_string = ''.join(self.type_dependency_path)
+        if dep_path_string not in dep_dictionary:
+            dep_path_string = 'UNK'
+        self.dep_features[dep_dictionary[dep_path_string]] = 1
+        self.features = self.dep_features + self.word_features
+        print(self.features)
 
 
 
