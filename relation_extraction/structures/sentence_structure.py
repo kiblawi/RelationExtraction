@@ -93,7 +93,7 @@ class Sentence(object):
 
 
     def print_entities(self):
-        print(self.entities)
+        return self.entities
 
     def generate_entity_pairs(self, entity_type_1, entity_type_2):
         for pair in list(itertools.product(self.entities[entity_type_1], self.entities[entity_type_2])):

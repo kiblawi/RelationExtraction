@@ -24,21 +24,16 @@ def build_dataset(words, occur_count = None):
 
     num_words = num_total_words - discard_count
 
-    count = [['UNK', -1]]
+    count = []
     count.extend(collections.Counter(words).most_common(num_words))
     dictionary = dict()
     for word, _ in count:
         dictionary[word] = len(dictionary)
     data = list()
-    unk_count = 0
     for word in words:
         if word in dictionary:
             index = dictionary[word]
-        else:
-            index = 0  # dictionary['UNK']
-            unk_count += 1
-        data.append(index)
-    count[0][1] = unk_count
+            data.append(index)
     reversed_dictionary = dict(zip(dictionary.values(), dictionary.keys()))
     return data, count, dictionary, reversed_dictionary
 
@@ -46,7 +41,7 @@ def build_dataset(words, occur_count = None):
 def feature_construction(dep_type_vocabulary, word_vocabulary, candidate_sentences):
 
     data, count, dictionary, reversed_dictionary = build_dataset(word_vocabulary, 10)
-    dep_data, dep_count, dep_dictionary, dep_reversed_dictionary = build_dataset(dep_type_vocabulary, 2)
+    dep_data, dep_count, dep_dictionary, dep_reversed_dictionary = build_dataset(dep_type_vocabulary)
 
 
     common_words_file = open('./static_data/common_words.txt','rU')
@@ -56,7 +51,6 @@ def feature_construction(dep_type_vocabulary, word_vocabulary, candidate_sentenc
     common_words = set()
     for l in lines:
         common_words.add(l.split()[0])
-    common_words.add('UNK')
 
     word_dictionary = {}
     array_place = 0
@@ -114,12 +108,12 @@ def load_xml(xml_file):
 
         for pair in entity_pairs:
             if candidate_sentence.tokens[pair[0]].get_normalized_ner() in elements and candidate_sentence.tokens[pair[1]].get_normalized_ner() in elements:
-                candidate_instance = Instance(candidate_sentence, pair[0], pair[1], 'Positive')
+                candidate_instance = Instance(candidate_sentence, pair[0], pair[1], 1)
                 candidate_sentences.append(candidate_instance)
                 all_word_vocabulary += candidate_instance.get_word_path()
                 all_dep_type_vocabulary.append(''.join(candidate_instance.get_type_dependency_path()))
             else:
-                candidate_instance = Instance(candidate_sentence, pair[0], pair[1], 'Negative')
+                candidate_instance = Instance(candidate_sentence, pair[0], pair[1], 0)
                 candidate_sentences.append(candidate_instance)
 
     return all_dep_type_vocabulary, all_word_vocabulary, candidate_sentences
