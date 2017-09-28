@@ -89,7 +89,10 @@ class Instance(object):
         word_path = []
         for i in range(1,len(self.dependency_path)-1):
             current_pos = self.dependency_path[i]
-            current_word = self.sentence.get_token(current_pos).get_lemma()
+            current_token = self.sentence.get_token(current_pos)
+            current_word = current_token.get_lemma()
+            if current_token.get_ner() != 'O' and current_token.get_ner() != 'GENE':
+                current_word = current_token.get_ner()
             word_path.append(current_word)
         self.word_path = word_path
         self.word_set = set(word_path)

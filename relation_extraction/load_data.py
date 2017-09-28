@@ -1,6 +1,7 @@
 import os
 import sys
 import collections
+import itertools
 import math
 import random
 import numpy as np
@@ -38,11 +39,27 @@ def build_dataset(words, occur_count = None):
     return data, count, dictionary, reversed_dictionary
 
 
-def feature_construction(dep_type_vocabulary, word_vocabulary, candidate_sentences):
+def build_instances(candidate_sentences, distant_interactions):
+    word_vocabulary = []
+    dep_type_vocabulary = []
+    candidate_instances = []
+    for candidate_sentence in candidate_sentences:
+        entity_pairs = candidate_sentence.get_entity_pairs()
+        for pair in entity_pairs:
+            entity_1 = candidate_sentence.get_token(pair[0]).get_normalized_ner().split('|')
+            entity_2 = candidate_sentence.get_token(pair[1]).get_normalized_ner().split('|')
+            entity_combos = set(itertools.product(entity_1,entity_2))
+            if len(entity_combos.intersection(distant_interactions)) > 0:
+                candidate_instance = Instance(candidate_sentence, pair[0], pair[1], 1)
+                candidate_instances.append(candidate_instance)
+                word_vocabulary += candidate_instance.get_word_path()
+                dep_type_vocabulary.append(''.join(candidate_instance.get_type_dependency_path()))
+            else:
+                candidate_instance = Instance(candidate_sentence, pair[0], pair[1], 0)
+                candidate_instances.append(candidate_instance)
 
     data, count, dictionary, reversed_dictionary = build_dataset(word_vocabulary, 10)
     dep_data, dep_count, dep_dictionary, dep_reversed_dictionary = build_dataset(dep_type_vocabulary)
-
 
     common_words_file = open('./static_data/common_words.txt','rU')
     lines = common_words_file.readlines()
@@ -60,12 +77,13 @@ def feature_construction(dep_type_vocabulary, word_vocabulary, candidate_sentenc
             array_place += 1
 
 
-    for cs in candidate_sentences:
-        cs.build_features(word_dictionary, dep_dictionary)
+    for ci in candidate_instances:
+        ci.build_features(word_dictionary, dep_dictionary)
 
-    return candidate_sentences, word_dictionary, dep_dictionary
 
-def load_xml(xml_file):
+    return candidate_instances, word_dictionary, dep_dictionary
+
+def load_xml(xml_file, entity_a, entity_b):
     tree = etree.parse(xml_file)
     root = tree.getroot()
     candidate_sentences = []
@@ -78,12 +96,6 @@ def load_xml(xml_file):
     for sentence in sentences:
         candidate_sentence = Sentence(sentence.get('id'))
         tokens = list(sentence.iter('token'))
-        elements = set()
-        if sentence.find('interaction') is not None:
-            interactions = sentence.find('interaction').text.split('|')
-            for i in interactions:
-                i_elements = set(i.split('-'))
-                elements = elements.union(i_elements)
 
 
         for token in tokens:
@@ -102,18 +114,22 @@ def load_xml(xml_file):
             candidate_dep = Dependency(d.get('type'), candidate_sentence.get_token(d.find('governor').get('idx')), candidate_sentence.get_token(d.find('dependent').get('idx')))
             candidate_sentence.add_dependency(candidate_dep)
 
-        candidate_sentence.generate_entity_pairs('HUMAN_GENE','VIRAL_GENE')
-        entity_pairs = candidate_sentence.get_entity_pairs()
+        candidate_sentence.generate_entity_pairs(entity_a, entity_b)
         candidate_sentence.build_dependency_matrix()
+        candidate_sentences.append(candidate_sentence)
 
-        for pair in entity_pairs:
-            if candidate_sentence.tokens[pair[0]].get_normalized_ner() in elements and candidate_sentence.tokens[pair[1]].get_normalized_ner() in elements:
-                candidate_instance = Instance(candidate_sentence, pair[0], pair[1], 1)
-                candidate_sentences.append(candidate_instance)
-                all_word_vocabulary += candidate_instance.get_word_path()
-                all_dep_type_vocabulary.append(''.join(candidate_instance.get_type_dependency_path()))
-            else:
-                candidate_instance = Instance(candidate_sentence, pair[0], pair[1], 0)
-                candidate_sentences.append(candidate_instance)
+    return candidate_sentences
 
-    return all_dep_type_vocabulary, all_word_vocabulary, candidate_sentences
+
+def load_distant_kb(distant_kb_file, column_a, column_b):
+    distant_interactions = set()
+    file = open(distant_kb_file,'rU')
+    lines = file.readlines()
+    file.close()
+
+    for l in lines:
+        split_line = l.split('\t')
+        tuple = (split_line[column_a],split_line[column_b])
+        distant_interactions.add(tuple)
+
+    return distant_interactions
