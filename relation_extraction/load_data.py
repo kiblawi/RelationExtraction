@@ -39,16 +39,26 @@ def build_dataset(words, occur_count = None):
     return data, count, dictionary, reversed_dictionary
 
 
-def build_instances(candidate_sentences, distant_interactions):
+def build_instances(candidate_sentences, distant_interactions, entity_1_list = None, entity_2_list = None):
     word_vocabulary = []
     dep_type_vocabulary = []
     candidate_instances = []
     for candidate_sentence in candidate_sentences:
         entity_pairs = candidate_sentence.get_entity_pairs()
+
         for pair in entity_pairs:
             entity_1 = candidate_sentence.get_token(pair[0]).get_normalized_ner().split('|')
+            if entity_1_list is not None:
+                if len(set(entity_1).intersection(entity_1_list)) == 0:
+                    continue
+
             entity_2 = candidate_sentence.get_token(pair[1]).get_normalized_ner().split('|')
+            if entity_2_list is not None:
+                if len(set(entity_2).intersection(entity_2_list)) == 0:
+                    continue
+
             entity_combos = set(itertools.product(entity_1,entity_2))
+
             if len(entity_combos.intersection(distant_interactions)) > 0:
                 candidate_instance = Instance(candidate_sentence, pair[0], pair[1], 1)
                 candidate_instances.append(candidate_instance)
@@ -133,3 +143,15 @@ def load_distant_kb(distant_kb_file, column_a, column_b):
         distant_interactions.add(tuple)
 
     return distant_interactions
+
+def load_id_list(id_list,column_a):
+    id_set = set()
+    file = open(id_list,'rU')
+    lines = file.readlines()
+    file.close()
+
+    for l in lines:
+        split_line = l.split('\t')
+        id_set.add(split_line[column_a])
+
+    return id_set
