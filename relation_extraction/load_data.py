@@ -39,8 +39,9 @@ def build_dataset(words, occur_count = None):
     return data, count, dictionary, reversed_dictionary
 
 
-def build_instances(candidate_sentences, distant_interactions, entity_1_list = None, entity_2_list = None):
-    word_vocabulary = []
+def build_instances_training(candidate_sentences, distant_interactions, entity_1_list = None, entity_2_list = None, symmetric = False):
+    path_word_vocabulary = []
+    words_between_entities_vocabulary = []
     dep_type_vocabulary = []
     candidate_instances = []
     for candidate_sentence in candidate_sentences:
@@ -62,14 +63,32 @@ def build_instances(candidate_sentences, distant_interactions, entity_1_list = N
             if len(entity_combos.intersection(distant_interactions)) > 0:
                 candidate_instance = Instance(candidate_sentence, pair[0], pair[1], 1)
                 candidate_instances.append(candidate_instance)
-                word_vocabulary += candidate_instance.get_word_path()
-                dep_type_vocabulary.append(''.join(candidate_instance.get_type_dependency_path()))
+
+                path_word_vocabulary += candidate_instance.get_dep_word_path()
+                words_between_entities_vocabulary += candidate_instance.get_between_words()
+                if symmetric == False:
+                    dep_type_vocabulary.append(''.join(candidate_instance.get_type_dependency_path()))
+                else:
+                    dep_type_vocabulary_set = set(dep_type_vocabulary)
+                    forward_dep_type_path = ''.join(candidate_instance.get_type_dependency_path())
+                    reverse_dep_type_path = ''.join(candidate_instance.get_reverse_type_dependency_path())
+                    if forward_dep_type_path in dep_type_vocabulary_set and reverse_dep_type_path not in dep_type_vocabulary_set:
+                        dep_type_vocabulary.append(forward_dep_type_path)
+                    elif forward_dep_type_path not in dep_type_vocabulary_set and reverse_dep_type_path in dep_type_vocabulary_set:
+                        dep_type_vocabulary.append(reverse_dep_type_path)
+                    elif forward_dep_type_path not in dep_type_vocabulary_set and reverse_dep_type_path not in dep_type_vocabulary_set:
+                        dep_type_vocabulary.append(forward_dep_type_path)
+                    elif forward_dep_type_path in dep_type_vocabulary_set and reverse_dep_type_path in dep_type_vocabulary_set:
+                        dep_type_vocabulary.append(forward_dep_type_path)
+
+
             else:
                 candidate_instance = Instance(candidate_sentence, pair[0], pair[1], 0)
                 candidate_instances.append(candidate_instance)
 
-    data, count, dictionary, reversed_dictionary = build_dataset(word_vocabulary, 10)
+    data, count, dictionary, reversed_dictionary = build_dataset(path_word_vocabulary, 10)
     dep_data, dep_count, dep_dictionary, dep_reversed_dictionary = build_dataset(dep_type_vocabulary)
+    between_data, between_count, between_dictionary, between_reversed_dictionary = build_dataset(words_between_entities_vocabulary)
 
     common_words_file = open('./static_data/common_words.txt','rU')
     lines = common_words_file.readlines()
@@ -79,19 +98,57 @@ def build_instances(candidate_sentences, distant_interactions, entity_1_list = N
     for l in lines:
         common_words.add(l.split()[0])
 
-    word_dictionary = {}
+    dep_path_word_dictionary = {}
     array_place = 0
     for c in count:
         if c[0] not in common_words:
-            word_dictionary[c[0]] = array_place
+            dep_path_word_dictionary[c[0]] = array_place
+            array_place += 1
+
+    between_word_dictionary = {}
+    array_place = 0
+    for c in between_count:
+        if c[0] not in common_words:
+            between_word_dictionary[c[0]] = array_place
             array_place += 1
 
 
     for ci in candidate_instances:
-        ci.build_features(word_dictionary, dep_dictionary)
+        ci.build_features(dep_path_word_dictionary, dep_dictionary, between_word_dictionary, symmetric)
 
 
-    return candidate_instances, word_dictionary, dep_dictionary
+    return candidate_instances, dep_path_word_dictionary, dep_dictionary, between_word_dictionary
+
+def build_instances_testing(test_sentences, dep_path_word_dictionary, dep_dictionary, between_word_dictionary, distant_interactions, entity_1_list =  None, entity_2_list = None, symmetric = False):
+    test_instances = []
+    for test_sentence in test_sentences:
+        entity_pairs = test_sentence.get_entity_pairs()
+
+        for pair in entity_pairs:
+            entity_1 = test_sentence.get_token(pair[0]).get_normalized_ner().split('|')
+            if entity_1_list is not None:
+                if len(set(entity_1).intersection(entity_1_list)) == 0:
+                    continue
+
+            entity_2 = test_sentence.get_token(pair[1]).get_normalized_ner().split('|')
+            if entity_2_list is not None:
+                if len(set(entity_2).intersection(entity_2_list)) == 0:
+                    continue
+
+            entity_combos = set(itertools.product(entity_1,entity_2))
+
+            if len(entity_combos.intersection(distant_interactions)) > 0:
+                candidate_instance = Instance(test_sentence, pair[0], pair[1], 1)
+                test_instances.append(candidate_instance)
+            else:
+                candidate_instance = Instance(test_sentence, pair[0], pair[1], 0)
+                test_instances.append(candidate_instance)
+
+
+    for instance in test_instances:
+        instance.build_features(dep_path_word_dictionary, dep_dictionary, between_word_dictionary, symmetric)
+
+    return test_instances
 
 def load_xml(xml_file, entity_a, entity_b):
     tree = etree.parse(xml_file)
