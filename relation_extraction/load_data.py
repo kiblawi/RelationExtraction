@@ -86,7 +86,7 @@ def build_instances_training(candidate_sentences, distant_interactions, entity_1
                 candidate_instance = Instance(candidate_sentence, pair[0], pair[1], 0)
                 candidate_instances.append(candidate_instance)
 
-    data, count, dictionary, reversed_dictionary = build_dataset(path_word_vocabulary, 10)
+    data, count, dictionary, reversed_dictionary = build_dataset(path_word_vocabulary)
     dep_data, dep_count, dep_dictionary, dep_reversed_dictionary = build_dataset(dep_type_vocabulary)
     between_data, between_count, between_dictionary, between_reversed_dictionary = build_dataset(words_between_entities_vocabulary)
 
