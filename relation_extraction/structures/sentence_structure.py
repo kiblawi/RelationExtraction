@@ -92,7 +92,7 @@ class Sentence(object):
             self.entities[token.get_ner()].append([token.get_token_id()])
 
 
-    def print_entities(self):
+    def get_entities(self):
         return self.entities
 
     def generate_entity_pairs(self, entity_type_1, entity_type_2):

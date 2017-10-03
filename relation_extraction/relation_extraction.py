@@ -25,17 +25,19 @@ def main():
     random.shuffle(candidate_sentences)
     total_chunks = [candidate_sentences[i:i + ten_fold_length] for i in xrange(0, len(candidate_sentences), ten_fold_length)]
     total_chunks.pop(-1)
-    print(len(total_chunks))
+
     total = 0
+    feature_total = 0
+    instance_total = 0
+    positive_total = 0
+    test_total = 0
+
+
     for i in range(10):
         chunks = total_chunks[:]
-        print(len(chunks))
         test_sentences = chunks.pop(i)
-        print(len(test_sentences))
         training_sentences = list(itertools.chain.from_iterable(chunks))
-        print(len(training_sentences))
         training_instances, word_dictionary, dep_dictionary, between_word_dictionary = load_data.build_instances_training(training_sentences, distant_interactions, None, hiv_genes, True)
-        print(len(dep_dictionary))
         test_instances = load_data.build_instances_testing(test_sentences, word_dictionary, dep_dictionary, between_word_dictionary, distant_interactions, None, hiv_genes, True)
 
         print('training linear regression')
@@ -43,12 +45,23 @@ def main():
         X = []
         y = []
         positive_instances = 0
+        print(len(training_instances))
+        instance_total += len(training_instances)
         for t in training_instances:
+            #print("training instance")
+            #print(t.label)
+            #print(t.features)
+            #print(t.get_type_dependency_path())
+            #print(t.get_reverse_type_dependency_path())
+            #print(t.get_dep_word_path())
+            #print(t.get_between_words())
+            #print(t.sentence.get_entities())
             X.append(t.features)
             y.append(t.label)
             if t.label == 1:
                 positive_instances += 1
-
+        print(positive_instances)
+        positive_total += positive_instances
 
         X_train = np.array(X)
         y_train = np.ravel(y)
@@ -58,10 +71,21 @@ def main():
 
         X = []
         y = []
+        print(len(test_instances))
         for t in test_instances:
+            #print("test instance")
+            #print(t.label)
+            #print(t.features)
+            #print(t.get_type_dependency_path())
+            #print(t.get_reverse_type_dependency_path())
+            #print(t.get_dep_word_path())
+            #print(t.get_between_words())
+            #print(t.sentence.get_entities())
             X.append(t.features)
             y.append(t.label)
 
+        feature_total += len(t.features)
+        test_total += len(test_instances)
         X_test = np.array(X)
         y_test = np.array(y)
 
@@ -71,7 +95,14 @@ def main():
         total += f1
 
     print(total/10)
+    print(feature_total/10)
+    print(instance_total/10)
+    print(positive_total/10)
+    print(test_total/10)
+    print(dep_dictionary)
 
+    print(word_dictionary)
+    print(between_word_dictionary)
 
 if __name__=="__main__":
     main()
