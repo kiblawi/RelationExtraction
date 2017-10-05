@@ -49,13 +49,20 @@ def build_instances_training(candidate_sentences, distant_interactions, entity_1
 
         for pair in entity_pairs:
             entity_1 = candidate_sentence.get_token(pair[0]).get_normalized_ner().split('|')
+            entity_2 = candidate_sentence.get_token(pair[1]).get_normalized_ner().split('|')
             if entity_1_list is not None:
                 if len(set(entity_1).intersection(entity_1_list)) == 0:
                     continue
 
-            entity_2 = candidate_sentence.get_token(pair[1]).get_normalized_ner().split('|')
+                # check if entity_2 overlaps with entity_1_list if so continue
+                if len(set(entity_2).intersection(entity_1_list)) > 0:
+                    continue
+
             if entity_2_list is not None:
                 if len(set(entity_2).intersection(entity_2_list)) == 0:
+                    continue
+                # check if entity_1 overlaps with entity_2_list if so continue
+                if len(set(entity_1).intersection(entity_2_list)) > 0:
                     continue
 
             entity_combos = set(itertools.product(entity_1,entity_2))
@@ -66,6 +73,7 @@ def build_instances_training(candidate_sentences, distant_interactions, entity_1
 
                 path_word_vocabulary += candidate_instance.get_dep_word_path()
                 words_between_entities_vocabulary += candidate_instance.get_between_words()
+
                 if symmetric == False:
                     dep_type_vocabulary.append(''.join(candidate_instance.get_type_dependency_path()))
                 else:
@@ -126,13 +134,20 @@ def build_instances_testing(test_sentences, dep_path_word_dictionary, dep_dictio
 
         for pair in entity_pairs:
             entity_1 = test_sentence.get_token(pair[0]).get_normalized_ner().split('|')
+            entity_2 = test_sentence.get_token(pair[1]).get_normalized_ner().split('|')
             if entity_1_list is not None:
                 if len(set(entity_1).intersection(entity_1_list)) == 0:
                     continue
 
-            entity_2 = test_sentence.get_token(pair[1]).get_normalized_ner().split('|')
+                #check if entity_2 overlaps with entity_1_list if so continue
+                if len(set(entity_2).intersection(entity_1_list)) == 0:
+                    continue
+
             if entity_2_list is not None:
                 if len(set(entity_2).intersection(entity_2_list)) == 0:
+                    continue
+                #check if entity_1 overlaps with entity_2_list if so continue
+                if len(set(entity_1).intersection(entity_2_list)) == 0:
                     continue
 
             entity_combos = set(itertools.product(entity_1,entity_2))

@@ -81,26 +81,32 @@ class Sentence(object):
         '''Adds a token to sentence'''
         previous_token = self.get_last_token()
         self.tokens.append(token)
-        if token.get_ner() not in self.entities:
-            self.entities[token.get_ner()] = []
-        if token.get_normalized_ner() is not None:
-            if token.get_normalized_ner() != previous_token.get_normalized_ner():
-                self.entities[token.get_ner()].append([token.get_token_id()])
+        #Some genes belong in both virus and human which is why we split
+        ners = token.get_ner().split('|')
+        for ner in ners:
+            if ner not in self.entities:
+                self.entities[ner] = []
+            if token.get_normalized_ner() is not None:
+                if token.get_normalized_ner() != previous_token.get_normalized_ner():
+                    self.entities[ner].append([token.get_token_id()])
+                else:
+                    self.entities[ner][-1].append(token.get_token_id())
             else:
-                self.entities[token.get_ner()][-1].append(token.get_token_id())
-        else:
-            self.entities[token.get_ner()].append([token.get_token_id()])
+                self.entities[ner].append([token.get_token_id()])
 
 
     def get_entities(self):
         return self.entities
 
     def generate_entity_pairs(self, entity_type_1, entity_type_2):
-        for pair in list(itertools.product(self.entities[entity_type_1], self.entities[entity_type_2])):
-            if max(pair[0]) > max(pair[1]):
-                self.pairs.append((pair[0][0], pair[1][-1]))
-            else:
-                self.pairs.append((pair[0][-1], pair[1][0]))
+        if entity_type_1 in self.entities and entity_type_2 in self.entities:
+            for pair in list(itertools.product(self.entities[entity_type_1], self.entities[entity_type_2])):
+                if pair[0] == pair[1]:
+                    continue
+                if max(pair[0]) > max(pair[1]):
+                    self.pairs.append((pair[0][0], pair[1][-1]))
+                else:
+                    self.pairs.append((pair[0][-1], pair[1][0]))
 
         '''
         for pair in list(itertools.product(self.entities[entity_type_2], self.entities[entity_type_1])):

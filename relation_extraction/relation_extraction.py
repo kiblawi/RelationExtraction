@@ -20,9 +20,9 @@ def main():
     candidate_sentences = load_data.load_xml(sys.argv[1], 'HUMAN_GENE', 'VIRAL_GENE')
     distant_interactions = load_data.load_distant_kb(sys.argv[2],4,0)
     hiv_genes = load_data.load_id_list(sys.argv[3],2)
+    print(len(candidate_sentences))
 
     ten_fold_length = len(candidate_sentences)/10
-    random.shuffle(candidate_sentences)
     total_chunks = [candidate_sentences[i:i + ten_fold_length] for i in xrange(0, len(candidate_sentences), ten_fold_length)]
     total_chunks.pop(-1)
 
@@ -33,7 +33,7 @@ def main():
     test_total = 0
 
 
-    for i in range(10):
+    for i in range(1):
         chunks = total_chunks[:]
         test_sentences = chunks.pop(i)
         training_sentences = list(itertools.chain.from_iterable(chunks))
@@ -47,19 +47,35 @@ def main():
         positive_instances = 0
         print(len(training_instances))
         instance_total += len(training_instances)
+        start_set = set()
         for t in training_instances:
-            #print("training instance")
-            #print(t.label)
-            #print(t.features)
-            #print(t.get_type_dependency_path())
-            #print(t.get_reverse_type_dependency_path())
-            #print(t.get_dep_word_path())
-            #print(t.get_between_words())
-            #print(t.sentence.get_entities())
+            '''
+            print("training instance")
+            print(t.label)
+            print(t.features)
+            print(t.get_type_dependency_path())
+            print(t.get_reverse_type_dependency_path())
+            print(t.get_dep_word_path())
+            print(t.get_between_words())
+            print(t.sentence.get_entities())
+            '''
             X.append(t.features)
             y.append(t.label)
             if t.label == 1:
                 positive_instances += 1
+
+            else:
+                print(t.get_sentence().get_sentence_string())
+                startpoint = t.get_sentence().get_token(t.start)
+                endpoint = t.get_sentence().get_token(t.end)
+                print(t.get_sentence().entities)
+                print(startpoint.get_word())
+                start_set.add(startpoint.get_word())
+                print(startpoint.get_normalized_ner())
+                print(endpoint.get_word())
+                print(endpoint.get_normalized_ner())
+
+
         print(positive_instances)
         positive_total += positive_instances
 
@@ -103,6 +119,7 @@ def main():
 
     print(word_dictionary)
     print(between_word_dictionary)
+    print(start_set)
 
 if __name__=="__main__":
     main()
