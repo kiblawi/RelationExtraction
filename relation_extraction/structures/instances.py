@@ -74,29 +74,23 @@ class Instance(object):
 
     def build_type_dependency_path(self):
         '''Returns shortest dependency path based on dependency types'''
-        source_token = self.sentence.get_token(self.start)
-        target_token = self.sentence.get_token(self.end)
-        type_path = [source_token.get_ner()]
+        type_path = []
         for i in range(len(self.dependency_path)-1):
             dep_start = self.dependency_path[i]
             dep_end = self.dependency_path[i + 1]
             dep_type = self.sentence.get_dependency_type(dep_start, dep_end)
             type_path.append(dep_type)
-        type_path.append(target_token.get_ner())
         self.type_dependency_path = type_path
 
     def build_reverse_type_path(self):
 
-        source_token = self.sentence.get_token(self.start)
-        target_token = self.sentence.get_token(self.end)
-        type_path = [source_token.get_ner()]
+        type_path = []
         reversed_dependency_path = list(reversed(self.dependency_path))
         for i in range(len(reversed_dependency_path)-1):
             dep_start = reversed_dependency_path[i]
             dep_end = reversed_dependency_path[i + 1]
             dep_type = self.sentence.get_dependency_type(dep_start, dep_end)
             type_path.append(dep_type)
-        type_path.append(target_token.get_ner())
         self.reverse_type_dependency_path = type_path
 
         '''
