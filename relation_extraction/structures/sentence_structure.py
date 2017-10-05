@@ -23,6 +23,9 @@ class Token(object):
         '''Returns token Id'''
         return self.token_id
 
+    def set_ner(self,new_ner):
+        self.ner = new_ner
+
     def get_ner(self):
         '''Returns ner of token'''
         return self.ner
@@ -94,6 +97,8 @@ class Sentence(object):
             else:
                 self.entities[ner].append([token.get_token_id()])
 
+    def get_tokens(self):
+        return self.tokens
 
     def get_entities(self):
         return self.entities

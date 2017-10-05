@@ -48,8 +48,11 @@ def build_instances_training(candidate_sentences, distant_interactions, entity_1
         entity_pairs = candidate_sentence.get_entity_pairs()
 
         for pair in entity_pairs:
-            entity_1 = candidate_sentence.get_token(pair[0]).get_normalized_ner().split('|')
-            entity_2 = candidate_sentence.get_token(pair[1]).get_normalized_ner().split('|')
+            entity_1_token = candidate_sentence.get_token(pair[0])
+            entity_2_token = candidate_sentence.get_token(pair[1])
+            entity_1 = entity_1_token.get_normalized_ner().split('|')
+            entity_2 = entity_2_token.get_normalized_ner().split('|')
+
             if entity_1_list is not None:
                 if len(set(entity_1).intersection(entity_1_list)) == 0:
                     continue
@@ -133,21 +136,23 @@ def build_instances_testing(test_sentences, dep_path_word_dictionary, dep_dictio
         entity_pairs = test_sentence.get_entity_pairs()
 
         for pair in entity_pairs:
-            entity_1 = test_sentence.get_token(pair[0]).get_normalized_ner().split('|')
-            entity_2 = test_sentence.get_token(pair[1]).get_normalized_ner().split('|')
+            entity_1_token = test_sentence.get_token(pair[0])
+            entity_2_token = test_sentence.get_token(pair[1])
+            entity_1 = entity_1_token.get_normalized_ner().split('|')
+            entity_2 = entity_2_token.get_normalized_ner().split('|')
             if entity_1_list is not None:
                 if len(set(entity_1).intersection(entity_1_list)) == 0:
                     continue
 
                 #check if entity_2 overlaps with entity_1_list if so continue
-                if len(set(entity_2).intersection(entity_1_list)) == 0:
+                if len(set(entity_2).intersection(entity_1_list)) > 0:
                     continue
 
             if entity_2_list is not None:
                 if len(set(entity_2).intersection(entity_2_list)) == 0:
                     continue
                 #check if entity_1 overlaps with entity_2_list if so continue
-                if len(set(entity_1).intersection(entity_2_list)) == 0:
+                if len(set(entity_1).intersection(entity_2_list)) > 0:
                     continue
 
             entity_combos = set(itertools.product(entity_1,entity_2))
@@ -165,28 +170,32 @@ def build_instances_testing(test_sentences, dep_path_word_dictionary, dep_dictio
 
     return test_instances
 
-def load_xml(xml_file, entity_a, entity_b):
+def load_xml(xml_file, entity_a, entity_b,entity_a_list = None, entity_b_list=None):
     tree = etree.parse(xml_file)
     root = tree.getroot()
     candidate_sentences = []
     sentences = list(root.iter('sentence'))
-
-    all_word_vocabulary = []
-    all_dep_type_vocabulary = []
 
 
     for sentence in sentences:
         candidate_sentence = Sentence(sentence.get('id'))
         tokens = list(sentence.iter('token'))
 
-
         for token in tokens:
             normalized_ner = None
+            ner = token.find('NER').text
             if token.find('NormalizedNER') is not None:
                 normalized_ner = token.find('NormalizedNER').text
+                normalized_ner_set = set(normalized_ner.split('|'))
+                if entity_a_list is not None:
+                    if len(normalized_ner_set.intersection(entity_a_list)):
+                        ner = entity_a
+                if entity_b_list is not None:
+                    if len(normalized_ner_set.intersection(entity_b_list)):
+                        ner = entity_b
 
             candidate_token = Token(token.get('id'), token.find('word').text, token.find('lemma').text, token.find('CharacterOffsetBegin').text,
-                                    token.find('CharacterOffsetEnd').text, token.find('POS').text, token.find('NER').text, normalized_ner)
+                                    token.find('CharacterOffsetEnd').text, token.find('POS').text, ner, normalized_ner)
             candidate_sentence.add_token(candidate_token)
 
         dependencies = list(sentence.iter('dependencies'))

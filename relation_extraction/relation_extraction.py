@@ -17,9 +17,10 @@ from sklearn import metrics
 
 def main():
     random.seed(102)
-    candidate_sentences = load_data.load_xml(sys.argv[1], 'HUMAN_GENE', 'VIRAL_GENE')
+    hiv_genes = load_data.load_id_list(sys.argv[3], 2)
+    candidate_sentences = load_data.load_xml(sys.argv[1], 'HUMAN_GENE', 'VIRAL_GENE', None, hiv_genes)
     distant_interactions = load_data.load_distant_kb(sys.argv[2],4,0)
-    hiv_genes = load_data.load_id_list(sys.argv[3],2)
+
     print(len(candidate_sentences))
 
     ten_fold_length = len(candidate_sentences)/10
