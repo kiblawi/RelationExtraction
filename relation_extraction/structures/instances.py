@@ -124,7 +124,10 @@ class Instance(object):
             current_token = self.sentence.get_token(current_pos)
             current_word = current_token.get_lemma()
             if current_token.get_ner() != 'O' and current_token.get_ner() != 'GENE':
-                current_word = current_token.get_ner()
+                if 'GENE' in current_token.get_ner():
+                    current_word = 'GENE'
+                else:
+                    current_word = current_token.get_ner()
             word_path.append(current_word)
         self.dep_word_path = word_path
 
@@ -166,7 +169,10 @@ class Instance(object):
             current_token = self.sentence.get_token(i)
             current_word = current_token.get_lemma()
             if current_token.get_ner() != 'O' and current_token.get_ner() != 'GENE':
-                current_word = current_token.get_ner()
+                if 'GENE' in current_token.get_ner():
+                    current_word = 'GENE'
+                else:
+                    current_word = current_token.get_ner()
             between_words.append(current_word)
         self.between_entity_words = between_words
 

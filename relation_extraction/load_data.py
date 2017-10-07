@@ -58,16 +58,16 @@ def build_instances_training(candidate_sentences, distant_interactions, entity_1
                     continue
 
                 # check if entity_2 overlaps with entity_1_list if so continue
-                #if len(set(entity_2).intersection(entity_1_list)) > 0:
-                #    continue
+                if len(set(entity_2).intersection(entity_1_list)) > 0:
+                    continue
 
             if entity_2_list is not None:
                 if len(set(entity_2).intersection(entity_2_list)) == 0:
                     continue
 
                 # check if entity_1 overlaps with entity_2_list if so continue
-                #if len(set(entity_1).intersection(entity_2_list)) > 0:
-                #    continue
+                if len(set(entity_1).intersection(entity_2_list)) > 0:
+                    continue
 
             entity_combos = set(itertools.product(entity_1,entity_2))
 
@@ -146,15 +146,15 @@ def build_instances_testing(test_sentences, dep_path_word_dictionary, dep_dictio
                     continue
 
                 #check if entity_2 overlaps with entity_1_list if so continue
-                #if len(set(entity_2).intersection(entity_1_list)) > 0:
-                #    continue
+                if len(set(entity_2).intersection(entity_1_list)) > 0:
+                    continue
 
             if entity_2_list is not None:
                 if len(set(entity_2).intersection(entity_2_list)) == 0:
                     continue
                 #check if entity_1 overlaps with entity_2_list if so continue
-                #if len(set(entity_1).intersection(entity_2_list)) > 0:
-                #   continue
+                if len(set(entity_1).intersection(entity_2_list)) > 0:
+                   continue
 
             entity_combos = set(itertools.product(entity_1,entity_2))
 
@@ -187,18 +187,6 @@ def load_xml(xml_file, entity_a, entity_b,entity_a_list = None, entity_b_list=No
             ner = token.find('NER').text
             if token.find('NormalizedNER') is not None:
                 normalized_ner = token.find('NormalizedNER').text
-                if len(ner.split('|')) > 1:
-                    normalized_ner_set = set(normalized_ner.split('|'))
-                    if entity_a_list is not None:
-                        if len(normalized_ner_set.intersection(entity_a_list)) > 0:
-                            ner = entity_a
-                        else:
-                            ner = entity_b
-                    if entity_b_list is not None:
-                        if len(normalized_ner_set.intersection(entity_b_list)) > 0:
-                            ner = entity_b
-                        else:
-                            ner = entity_a
 
             candidate_token = Token(token.get('id'), token.find('word').text, token.find('lemma').text, token.find('CharacterOffsetBegin').text,
                                     token.find('CharacterOffsetEnd').text, token.find('POS').text, ner, normalized_ner)
