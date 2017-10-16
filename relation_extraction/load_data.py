@@ -101,7 +101,6 @@ def build_instances_training(candidate_sentences, distant_interactions, entity_1
     data, count, dictionary, reversed_dictionary = build_dataset(path_word_vocabulary)
     dep_data, dep_count, dep_dictionary, dep_reversed_dictionary = build_dataset(dep_type_vocabulary)
     between_data, between_count, between_dictionary, between_reversed_dictionary = build_dataset(words_between_entities_vocabulary)
-
     common_words_file = open('./static_data/common_words.txt','rU')
     lines = common_words_file.readlines()
     common_words_file.close()
@@ -170,6 +169,39 @@ def build_instances_testing(test_sentences, dep_path_word_dictionary, dep_dictio
         instance.build_features(dep_path_word_dictionary, dep_dictionary, between_word_dictionary, symmetric)
 
     return test_instances
+
+def build_instances_predict(predict_sentences, dep_path_word_dictionary, dep_dictionary, between_word_dictionary, entity_1_list = None, entity_2_list = None, symmetric = False):
+    predict_instances = []
+    for p_sentence in predict_sentences:
+        entity_pairs = p_sentence.get_entity_pairs()
+
+        for pair in entity_pairs:
+            entity_1_token = p_sentence.get_token(pair[0])
+            entity_2_token = p_sentence.get_token(pair[1])
+            entity_1 = entity_1_token.get_normalized_ner().split('|')
+            entity_2 = entity_2_token.get_normalized_ner().split('|')
+            if entity_1_list is not None:
+                if len(set(entity_1).intersection(entity_1_list)) == 0:
+                    continue
+
+                #check if entity_2 overlaps with entity_1_list if so continue
+                if len(set(entity_2).intersection(entity_1_list)) > 0:
+                    continue
+
+            if entity_2_list is not None:
+                if len(set(entity_2).intersection(entity_2_list)) == 0:
+                    continue
+                #check if entity_1 overlaps with entity_2_list if so continue
+                if len(set(entity_1).intersection(entity_2_list)) > 0:
+                   continue
+
+            candidate_instance = Instance(p_sentence, pair[0], pair[1], -1)
+            predict_instances.append(candidate_instance)
+
+    for instance in predict_instances:
+        instance.build_features(dep_path_word_dictionary, dep_dictionary, between_word_dictionary, symmetric)
+
+    return predict_instances
 
 def load_xml(xml_file, entity_a, entity_b,entity_a_list = None, entity_b_list=None):
     tree = etree.parse(xml_file)
