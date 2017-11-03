@@ -132,7 +132,7 @@ class Instance(object):
         self.dep_word_path = word_path
 
 
-    def build_features(self, word_dictionary, dep_dictionary, between_word_dictionary, symmetry=False):
+    def build_features(self, word_dictionary, dep_dictionary, between_word_dictionary, symmetric=False):
         self.dep_word_features = [0] * len(word_dictionary)
         self.dep_features = [0] * len(dep_dictionary)
         self.between_features = [0] * len(between_word_dictionary)
@@ -149,7 +149,7 @@ class Instance(object):
 
 
         dep_path_string = ''.join(self.type_dependency_path)
-        if symmetry == False:
+        if symmetric == False:
             if dep_path_string in dep_dictionary:
                 self.dep_features[dep_dictionary[dep_path_string]] = 1
 

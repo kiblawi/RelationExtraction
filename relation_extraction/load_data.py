@@ -203,7 +203,7 @@ def build_instances_predict(predict_sentences, dep_path_word_dictionary, dep_dic
 
     return predict_instances
 
-def load_xml(xml_file, entity_a, entity_b,entity_a_list = None, entity_b_list=None):
+def load_xml(xml_file, entity_1, entity_2):
     tree = etree.parse(xml_file)
     root = tree.getroot()
     candidate_sentences = []
@@ -231,7 +231,7 @@ def load_xml(xml_file, entity_a, entity_b,entity_a_list = None, entity_b_list=No
             candidate_dep = Dependency(d.get('type'), candidate_sentence.get_token(d.find('governor').get('idx')), candidate_sentence.get_token(d.find('dependent').get('idx')))
             candidate_sentence.add_dependency(candidate_dep)
 
-        candidate_sentence.generate_entity_pairs(entity_a, entity_b)
+        candidate_sentence.generate_entity_pairs(entity_1, entity_2)
         candidate_sentence.build_dependency_matrix()
         candidate_sentences.append(candidate_sentence)
 

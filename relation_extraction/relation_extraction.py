@@ -8,37 +8,165 @@ import itertools
 import structures
 import numpy as np
 import matplotlib.pyplot as plt
-
+import pickle
 
 from sklearn.linear_model import LogisticRegression
+from sklearn.externals import joblib
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import cross_val_score
 from sklearn import metrics
 
 
+def predict_sentences(model_file,sentence_file,entity_1,entity_1_file,entity_1_col,
+                       entity_2,entity_2_file,entity_2_col,symmetric):
+
+    if entity_1_file.upper() != "NONE":
+        entity_1_ids = load_data.load_id_list(entity_1_file,entity_1_col)
+    else:
+        entity_1_ids = None
+    if entity_2_file.upper() != "NONE":
+        entity_2_ids = load_data.load_id_list(entity_2_file,entity_2_col)
+    else:
+        entity_2_ids = None
+
+    predict_candidate_sentences = load_data.load_xml(sentence_file, entity_1, entity_2)
+
+
+    model, word_dictionary, dep_dictionary, between_word_dictionary = joblib.load(model_file)
+
+    predict_instances = load_data.build_instances_predict(predict_candidate_sentences, word_dictionary, dep_dictionary,
+                                                          between_word_dictionary, entity_1_ids, entity_2_ids, symmetric)
+
+
+
+    print(len(predict_instances))
+
+    X = []
+
+    for p in predict_instances:
+        print(p.get_sentence().get_sentence_string())
+        startpoint = p.get_sentence().get_token(p.start)
+        endpoint = p.get_sentence().get_token(p.end)
+        print(p.get_sentence().entities)
+        print(startpoint.get_word())
+        print(startpoint.get_normalized_ner())
+        print(endpoint.get_word())
+        print(endpoint.get_normalized_ner())
+        print(len(p.features))
+        X.append(p.features)
+
+    X_predict = np.array(X)
+
+    predicted_labels = model.predict(X_predict)
+
+    count = 0
+    for y in predicted_labels:
+        if y == 1:
+            count += 1
+
+
+    print(count)
+    print(len(predicted_labels))
+
+
+def distant_train(model_out,sentence_file,distant_file,distant_e1_col,distant_e2_col,entity_1,entity_1_file,entity_1_col,
+                      entity_2,entity_2_file,entity_2_col,symmetric):
+
+    if entity_1_file.upper() != "NONE":
+        entity_1_ids = load_data.load_id_list(entity_1_file,entity_1_col)
+    else:
+        entity_1_ids = None
+    if entity_2_file.upper() != "NONE":
+        entity_2_ids = load_data.load_id_list(entity_2_file,entity_2_col)
+    else:
+        entity_2_ids = None
+
+    distant_interactions = load_data.load_distant_kb(distant_file,distant_e1_col,distant_e2_col)
+
+    training_sentences = load_data.load_xml(sentence_file,entity_1,entity_2)
+
+    training_instances, word_dictionary, dep_dictionary, between_word_dictionary = load_data.build_instances_training(
+        training_sentences, distant_interactions, entity_1_ids, entity_2_ids, symmetric )
+
+
+    X = []
+    y = []
+    for t in training_instances:
+        X.append(t.features)
+        y.append(t.label)
+
+    X_train = np.array(X)
+    y_train = np.ravel(y)
+
+    model = LogisticRegression()
+    model.fit(X_train, y_train)
+
+    print(model.get_params)
+    joblib.dump((model,word_dictionary,dep_dictionary,between_word_dictionary),model_out)
+
+    print("trained model")
+
 def main():
-    random.seed(102)
-    hiv_genes = load_data.load_id_list(sys.argv[3], 2)
-    hsv_genes = load_data.load_id_list(sys.argv[5],2)
+    mode = sys.argv[1]
+    if mode.upper() == "DISTANT_TRAIN":
+        model_out = sys.argv[2]
+        sentence_file = sys.argv[3]
+        distant_file = sys.argv[4]
+        distant_e1_col = int(sys.argv[5])
+        distant_e2_col = int(sys.argv[6])
+        entity_1 = sys.argv[7].upper()
+        entity_1_file = sys.argv[8]
+        entity_1_col = int(sys.argv[9])
+        entity_2 = sys.argv[10].upper()
+        entity_2_file = sys.argv[11]
+        entity_2_col = int(sys.argv[12])
+        symmetric = sys.argv[13].upper() in ['TRUE','Y','YES']
+
+        distant_train(model_out,sentence_file,distant_file,distant_e1_col,distant_e2_col,entity_1,entity_1_file,entity_1_col,
+                      entity_2,entity_2_file,entity_2_col,symmetric)
+
+    elif mode.upper() == "TEST":
+        model_file = sys.argv[2]
+        sentence_file = sys.argv[3]
+        entity_1 = sys.argv[4].upper()
+        entity_1_file = sys.argv[5]
+        entity_1_col = int(sys.argv[6])
+        entity_2 = sys.argv[7].upper()
+        entity_2_file = sys.argv[8]
+        entity_2_col = int(sys.argv[9])
+        symmetric = sys.argv[10].upper() in ['TRUE','Y','YES']
+
+        print('testing function not developed yet')
+
+    elif mode.upper() == "PREDICT":
+        model_file = sys.argv[2]
+        sentence_file = sys.argv[3]
+        entity_1 = sys.argv[4].upper()
+        entity_1_file = sys.argv[5]
+        entity_1_col = int(sys.argv[6])
+        entity_2 = sys.argv[7].upper()
+        entity_2_file = sys.argv[8]
+        entity_2_col = int(sys.argv[9])
+        symmetric = sys.argv[10].upper() in ['TRUE','Y','YES']
+
+        predict_sentences(model_file,sentence_file,entity_1,entity_1_file,entity_1_col,
+                       entity_2,entity_2_file,entity_2_col,symmetric)
 
 
-    candidate_sentences = load_data.load_xml(sys.argv[1], 'HUMAN_GENE', 'VIRAL_GENE', None, hiv_genes)
-    distant_interactions = load_data.load_distant_kb(sys.argv[2],4,0)
-    hsv_sentences = load_data.load_xml(sys.argv[4],'HUMAN_GENE','VIRAL_GENE',None,hsv_genes)
+    else:
+        print("usage error")
 
-    print(len(candidate_sentences))
+
+
+
+
+    '''
+
+
 
     ten_fold_length = len(candidate_sentences)/10
     total_chunks = [candidate_sentences[i:i + ten_fold_length] for i in xrange(0, len(candidate_sentences), ten_fold_length)]
     total_chunks.pop(-1)
-
-    total = 0
-    feature_total = 0
-    instance_total = 0
-    positive_total = 0
-    test_total = 0
-
-
     for i in range(1):
         chunks = total_chunks[:]
         test_sentences = chunks.pop(8)
@@ -52,11 +180,12 @@ def main():
         y = []
         positive_instances = 0
         print(len(training_instances))
+        print('hsvi: ' + str(len(hsv_instances)))
         instance_total += len(training_instances)
         start_set = set()
         for t in training_instances:
 
-            '''
+            
             print("training instance")
             print(t.label)
             print(t.features)
@@ -65,13 +194,13 @@ def main():
             print(t.get_dep_word_path())
             print(t.get_between_words())
             print(t.sentence.get_entities())
-            '''
+          
 
             X.append(t.features)
             y.append(t.label)
             if t.label == 1:
                 positive_instances += 1
-            '''
+            
             else:
                 print(t.get_sentence().get_sentence_string())
                 startpoint = t.get_sentence().get_token(t.start)
@@ -82,7 +211,7 @@ def main():
                 print(startpoint.get_normalized_ner())
                 print(endpoint.get_word())
                 print(endpoint.get_normalized_ner())
-            '''
+            
 
         print(positive_instances)
         positive_total += positive_instances
@@ -129,8 +258,9 @@ def main():
         X = []
         print(len(test_instances))
         print(len(hsv_instances))
+        count = 0
         for t in hsv_instances:
-            '''
+           
             print("hsv instance")
             print(t.get_sentence().get_sentence_string())
             startpoint = t.get_sentence().get_token(t.start)
@@ -141,7 +271,7 @@ def main():
             print(startpoint.get_normalized_ner())
             print(endpoint.get_word())
             print(endpoint.get_normalized_ner())
-            '''
+          
             X.append(t.features)
 
         X_hsv = np.array(X)
@@ -154,6 +284,7 @@ def main():
         print(predicted_hsv)
         for p in range(len(predicted_hsv)):
             if predicted_hsv[p] == 1:
+                count+=1
                 sp = []
                 ep = []
                 t = hsv_instances[p]
@@ -169,11 +300,11 @@ def main():
                             sp = l
                         elif t.end in l:
                             ep = l
-                sfile.write(' '.join(t.get_sentence().get_token(a).get_word() for a in sp) + '\t----\t' + ' '.join(
-                    t.get_sentence().get_token(b).get_word() for b in ep) + '\n')
+                sfile.write(' '.join(t.get_sentence().get_token(a).get_word() for a in sp).encode('utf-8') + '\t----\t' + ' '.join(
+                    t.get_sentence().get_token(b).get_word() for b in ep).encode('utf-8') + '\n')
                 print(' '.join(t.get_sentence().get_token(a).get_word() for a in sp) + '\t----\t' + ' '.join(t.get_sentence().get_token(b).get_word() for b in ep))
-                outfile.write(' '.join(t.get_sentence().get_token(a).get_word() for a in sp) + '\t----\t' + ' '.join(t.get_sentence().get_token(b).get_word() for b in ep)+ '\n')
-                tfile.write(' '.join(t.get_sentence().get_token(b).get_word() for b in ep)+'\tHSV\n')
+                outfile.write(' '.join(t.get_sentence().get_token(a).get_word() for a in sp).encode('utf-8') + '\t----\t' + ' '.join(t.get_sentence().get_token(b).get_word() for b in ep).encode('utf-8')+ '\n')
+                tfile.write(' '.join(t.get_sentence().get_token(b).get_word() for b in ep).encode('utf-8')+'\tHSV\n')
 
                 print('\n')
 
@@ -192,6 +323,8 @@ def main():
     print(between_word_dictionary)
     print(start_set)
     print(hiv_genes)
+    print(count)
+    '''
 
 if __name__=="__main__":
     main()
