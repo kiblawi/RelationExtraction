@@ -57,7 +57,7 @@ def predict_sentences(model_file,sentence_file,entity_1,entity_1_file,entity_1_c
     return predict_instances, predicted_labels
 
 
-def distant_train(model_out,sentence_file,distant_file,distant_e1_col,distant_e2_col,entity_1,entity_1_file,entity_1_col,
+def distant_train(model_out,sentence_file,distant_file,distant_e1_col,distant_e2_col,distant_rel_col,entity_1,entity_1_file,entity_1_col,
                       entity_2,entity_2_file,entity_2_col,symmetric):
 
     if entity_1_file.upper() != "NONE":
@@ -69,12 +69,13 @@ def distant_train(model_out,sentence_file,distant_file,distant_e1_col,distant_e2
     else:
         entity_2_ids = None
 
-    distant_interactions = load_data.load_distant_kb(distant_file,distant_e1_col,distant_e2_col)
-
+    distant_interactions,reverse_distant_interactions = load_data.load_distant_kb(distant_file,distant_e1_col,distant_e2_col,distant_rel_col)
+    print(len(distant_interactions))
+    print(len(reverse_distant_interactions))
     training_sentences = load_data.load_xml(sentence_file,entity_1,entity_2)
 
     training_instances, dep_dictionary, dep_word_dictionary,  between_word_dictionary = load_data.build_instances_training(
-        training_sentences, distant_interactions, entity_1_ids, entity_2_ids, symmetric )
+        training_sentences, distant_interactions,reverse_distant_interactions, entity_1_ids, entity_2_ids, symmetric )
 
 
     X = []
@@ -97,6 +98,12 @@ def distant_train(model_out,sentence_file,distant_file,distant_e1_col,distant_e2
     print('Number of Positive Instances')
     print(y.count(1))
     print(model.get_params)
+    print('Number of dependency paths ')
+    print(len(dep_dictionary))
+    print('Number of dependency words')
+    print(len(dep_word_dictionary))
+    print('Number of between words')
+    print(len(between_word_dictionary))
     joblib.dump((model,dep_dictionary,dep_word_dictionary,between_word_dictionary),model_out)
 
     print("trained model")
@@ -137,15 +144,16 @@ def main():
         distant_file = sys.argv[4]
         distant_e1_col = int(sys.argv[5])
         distant_e2_col = int(sys.argv[6])
-        entity_1 = sys.argv[7].upper()
-        entity_1_file = sys.argv[8]
-        entity_1_col = int(sys.argv[9])
-        entity_2 = sys.argv[10].upper()
-        entity_2_file = sys.argv[11]
-        entity_2_col = int(sys.argv[12])
-        symmetric = sys.argv[13].upper() in ['TRUE','Y','YES']
+        distant_rel_col = int(sys.argv[7])
+        entity_1 = sys.argv[8].upper()
+        entity_1_file = sys.argv[9]
+        entity_1_col = int(sys.argv[10])
+        entity_2 = sys.argv[11].upper()
+        entity_2_file = sys.argv[12]
+        entity_2_col = int(sys.argv[13])
+        symmetric = sys.argv[14].upper() in ['TRUE','Y','YES']
 
-        distant_train(model_out,sentence_file,distant_file,distant_e1_col,distant_e2_col,entity_1,entity_1_file,entity_1_col,
+        distant_train(model_out,sentence_file,distant_file,distant_e1_col,distant_e2_col,distant_rel_col,entity_1,entity_1_file,entity_1_col,
                       entity_2,entity_2_file,entity_2_col,symmetric)
 
     elif mode.upper() == "TEST":

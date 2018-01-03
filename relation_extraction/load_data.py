@@ -39,7 +39,7 @@ def build_dataset(words, occur_count = None):
     return data, count, dictionary, reversed_dictionary
 
 
-def build_instances_training(candidate_sentences, distant_interactions, entity_1_list = None, entity_2_list = None, symmetric = False):
+def build_instances_training(candidate_sentences, distant_interactions,reverse_distant_interactions, entity_1_list = None, entity_2_list = None, symmetric = False):
     path_word_vocabulary = []
     words_between_entities_vocabulary = []
     dep_type_vocabulary = []
@@ -71,10 +71,17 @@ def build_instances_training(candidate_sentences, distant_interactions, entity_1
 
             entity_combos = set(itertools.product(entity_1,entity_2))
 
-            if len(entity_combos.intersection(distant_interactions)) > 0:
+            if len(entity_combos.intersection(distant_interactions)) > 0 or len(entity_combos.intersection(reverse_distant_interactions)) > 0:
                 candidate_instance = Instance(candidate_sentence, pair[0], pair[1], 1)
-                candidate_instances.append(candidate_instance)
 
+                #check if check returned true because of reverse
+                if len(entity_combos.intersection(distant_interactions)) == 0:
+                    buffer_dep_path = candidate_instance.get_type_dependency_path()
+                    candidate_instance.type_dependency_path = candidate_instance.get_reverse_type_dependency_path()
+                    candidate_instance.reverse_type_dependency_path = buffer_dep_path
+
+
+                candidate_instances.append(candidate_instance)
                 path_word_vocabulary += candidate_instance.get_dep_word_path()
                 words_between_entities_vocabulary += candidate_instance.get_between_words()
 
@@ -241,18 +248,22 @@ def load_xml(xml_file, entity_1, entity_2):
     return candidate_sentences
 
 
-def load_distant_kb(distant_kb_file, column_a, column_b):
+def load_distant_kb(distant_kb_file, column_a, column_b,distant_rel_col):
     distant_interactions = set()
+    reverse_distant_interactions = set()
     file = open(distant_kb_file,'rU')
     lines = file.readlines()
     file.close()
-
+    print(len(lines))
     for l in lines:
         split_line = l.split('\t')
         tuple = (split_line[column_a],split_line[column_b])
-        distant_interactions.add(tuple)
+        if split_line[distant_rel_col].endswith('by') is False:
+            distant_interactions.add(tuple)
+        else:
+            reverse_distant_interactions.add(tuple)
 
-    return distant_interactions
+    return distant_interactions,reverse_distant_interactions
 
 def load_id_list(id_list,column_a):
     id_set = set()
