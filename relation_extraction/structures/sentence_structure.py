@@ -160,12 +160,3 @@ class Sentence(object):
 
     def get_dependency_matrix(self):
         return self.dependency_matrix
-
-
-
-
-
-
-
-
-

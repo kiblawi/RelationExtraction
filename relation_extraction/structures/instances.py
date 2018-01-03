@@ -179,6 +179,7 @@ class Instance(object):
     def get_between_words(self):
         return self.between_entity_words
 
+
     def get_dep_word_path(self):
         '''Returns word path'''
         return self.dep_word_path

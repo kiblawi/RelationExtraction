@@ -31,42 +31,26 @@ def predict_sentences(model_file,sentence_file,entity_1,entity_1_file,entity_1_c
 
     predict_candidate_sentences = load_data.load_xml(sentence_file, entity_1, entity_2)
 
-
-    model, word_dictionary, dep_dictionary, between_word_dictionary = joblib.load(model_file)
-
-    predict_instances = load_data.build_instances_predict(predict_candidate_sentences, word_dictionary, dep_dictionary,
+    model, dep_dictionary, dep_word_dictionary, between_word_dictionary = joblib.load(model_file)
+    predict_instances = load_data.build_instances_predict(predict_candidate_sentences,  dep_dictionary, dep_word_dictionary,
                                                           between_word_dictionary, entity_1_ids, entity_2_ids, symmetric)
 
 
 
-    print(len(predict_instances))
-
     X = []
-
+    instance_sentences = set()
     for p in predict_instances:
-        print(p.get_sentence().get_sentence_string())
-        startpoint = p.get_sentence().get_token(p.start)
-        endpoint = p.get_sentence().get_token(p.end)
-        print(p.get_sentence().entities)
-        print(startpoint.get_word())
-        print(startpoint.get_normalized_ner())
-        print(endpoint.get_word())
-        print(endpoint.get_normalized_ner())
-        print(len(p.features))
         X.append(p.features)
+        instance_sentences.add(p.get_sentence())
 
     X_predict = np.array(X)
 
     predicted_labels = model.predict(X_predict)
-
-    count = 0
-    for y in predicted_labels:
-        if y == 1:
-            count += 1
-
-
-    print(count)
-    print(len(predicted_labels))
+    print('Number of Sentences')
+    print(len(instance_sentences))
+    print('Number of Instances')
+    print(len(predict_instances))
+    return predict_instances, predicted_labels
 
 
 def distant_train(model_out,sentence_file,distant_file,distant_e1_col,distant_e2_col,entity_1,entity_1_file,entity_1_col,
@@ -85,13 +69,15 @@ def distant_train(model_out,sentence_file,distant_file,distant_e1_col,distant_e2
 
     training_sentences = load_data.load_xml(sentence_file,entity_1,entity_2)
 
-    training_instances, word_dictionary, dep_dictionary, between_word_dictionary = load_data.build_instances_training(
+    training_instances, dep_dictionary, dep_word_dictionary, between_word_dictionary = load_data.build_instances_training(
         training_sentences, distant_interactions, entity_1_ids, entity_2_ids, symmetric )
 
 
     X = []
     y = []
+    instance_sentences = set()
     for t in training_instances:
+        instance_sentences.add(t.get_sentence())
         X.append(t.features)
         y.append(t.label)
 
@@ -100,9 +86,20 @@ def distant_train(model_out,sentence_file,distant_file,distant_e1_col,distant_e2
 
     model = LogisticRegression()
     model.fit(X_train, y_train)
-
+    print('Number of Sentences')
+    print(len(instance_sentences))
+    print('Number of Instances')
+    print(len(training_instances))
+    print('Number of Positive Instances')
+    print(y.count(1))
     print(model.get_params)
-    joblib.dump((model,word_dictionary,dep_dictionary,between_word_dictionary),model_out)
+    print('Number of dependency paths ')
+    print(len(dep_dictionary))
+    print('Number of dependency words')
+    print(len(dep_word_dictionary))
+    print('Number of between words')
+    print(len(between_word_dictionary))
+    joblib.dump((model,dep_dictionary,dep_word_dictionary,between_word_dictionary),model_out)
 
     print("trained model")
 
@@ -149,14 +146,34 @@ def main():
         entity_2_col = int(sys.argv[9])
         symmetric = sys.argv[10].upper() in ['TRUE','Y','YES']
 
-        predict_sentences(model_file,sentence_file,entity_1,entity_1_file,entity_1_col,
+        predicted_instances, predicted_labels = predict_sentences(model_file,sentence_file,entity_1,entity_1_file,entity_1_col,
                        entity_2,entity_2_file,entity_2_col,symmetric)
 
+        '''
+        outfile = open('/Users/kiblawi/Workspace/Data/predicted_sentences.txt','w')
+        for i in range(len(predicted_labels)):
+            pi = predicted_instances[i]
+            sp = []
+            ep = []
+            for e in pi.get_sentence().entities:
+                for l in pi.get_sentence().entities[e]:
+                    if pi.start in l:
+                        sp = l
+                    elif pi.end in l:
+                        ep = l
+            outfile.write('Instance: ' + str(i) + '\n')
+            outfile.write('Label: ' + str(predicted_labels[i]) + '\n')
+            outfile.write(
+                ' '.join('Human_gene:' + pi.get_sentence().get_token(a).get_word() for a in sp).encode('utf-8') + '\t' + 'Viral_gene:' + ' '.join(
+                    pi.get_sentence().get_token(b).get_word() for b in ep).encode('utf-8') + '\n')
+            outfile.write('Human_gene_index: ' + str(pi.start) + '\t' + 'Viral_gene_index: ' + str(pi.end) + '\n')
+            outfile.write(pi.get_sentence().get_sentence_string().encode('utf-8') + '\n')
+            outfile.write('Accuracy: \n\n')
+        outfile.close()
+        '''
 
     else:
         print("usage error")
-
-
 
 
 
