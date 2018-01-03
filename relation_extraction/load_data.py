@@ -86,11 +86,11 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
                 words_between_entities_vocabulary += candidate_instance.get_between_words()
 
                 if symmetric == False:
-                    dep_type_vocabulary.append(' '.join(candidate_instance.get_type_dependency_path()))
+                    dep_type_vocabulary.append(''.join(candidate_instance.get_type_dependency_path()))
                 else:
                     dep_type_vocabulary_set = set(dep_type_vocabulary)
-                    forward_dep_type_path = ' '.join(candidate_instance.get_type_dependency_path())
-                    reverse_dep_type_path = ' '.join(candidate_instance.get_reverse_type_dependency_path())
+                    forward_dep_type_path = ''.join(candidate_instance.get_type_dependency_path())
+                    reverse_dep_type_path = ''.join(candidate_instance.get_reverse_type_dependency_path())
                     if forward_dep_type_path in dep_type_vocabulary_set and reverse_dep_type_path not in dep_type_vocabulary_set:
                         dep_type_vocabulary.append(forward_dep_type_path)
                     elif forward_dep_type_path not in dep_type_vocabulary_set and reverse_dep_type_path in dep_type_vocabulary_set:
@@ -130,17 +130,14 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
             between_word_dictionary[c[0]] = array_place
             array_place += 1
 
-    print(dep_dictionary)
-    print(dep_path_word_dictionary)
-    print(between_word_dictionary)
 
     for ci in candidate_instances:
-        ci.build_features(dep_dictionary, dep_path_word_dictionary, between_word_dictionary, symmetric)
+        ci.build_features(dep_path_word_dictionary, dep_dictionary, between_word_dictionary, symmetric)
 
 
-    return candidate_instances, dep_dictionary, dep_path_word_dictionary, between_word_dictionary
+    return candidate_instances, dep_path_word_dictionary, dep_dictionary, between_word_dictionary
 
-def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictionary, between_word_dictionary, distant_interactions, entity_1_list =  None, entity_2_list = None, symmetric = False):
+def build_instances_testing(test_sentences, dep_path_word_dictionary, dep_dictionary, between_word_dictionary, distant_interactions, entity_1_list =  None, entity_2_list = None, symmetric = False):
     test_instances = []
     for test_sentence in test_sentences:
         entity_pairs = test_sentence.get_entity_pairs()
@@ -176,11 +173,11 @@ def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictio
 
 
     for instance in test_instances:
-        instance.build_features(dep_dictionary, dep_path_word_dictionary,  between_word_dictionary, symmetric)
+        instance.build_features(dep_path_word_dictionary, dep_dictionary, between_word_dictionary, symmetric)
 
     return test_instances
 
-def build_instances_predict(predict_sentences, dep_dictionary, dep_path_word_dictionary, between_word_dictionary, entity_1_list = None, entity_2_list = None, symmetric = False):
+def build_instances_predict(predict_sentences, dep_path_word_dictionary, dep_dictionary, between_word_dictionary, entity_1_list = None, entity_2_list = None, symmetric = False):
     predict_instances = []
     for p_sentence in predict_sentences:
         entity_pairs = p_sentence.get_entity_pairs()
@@ -209,7 +206,7 @@ def build_instances_predict(predict_sentences, dep_dictionary, dep_path_word_dic
             predict_instances.append(candidate_instance)
 
     for instance in predict_instances:
-        instance.build_features(dep_dictionary, dep_path_word_dictionary,  between_word_dictionary, symmetric)
+        instance.build_features(dep_path_word_dictionary, dep_dictionary, between_word_dictionary, symmetric)
 
     return predict_instances
 
