@@ -246,7 +246,6 @@ def load_distant_kb(distant_kb_file, column_a, column_b):
     file = open(distant_kb_file,'rU')
     lines = file.readlines()
     file.close()
-    print(len(lines))
     for l in lines:
         split_line = l.split('\t')
         tuple = (split_line[column_a],split_line[column_b])
