@@ -132,15 +132,15 @@ class Instance(object):
         self.dep_word_path = word_path
 
 
-    def build_features(self, word_dictionary, dep_dictionary, between_word_dictionary, symmetric=False):
-        self.dep_word_features = [0] * len(word_dictionary)
+    def build_features(self, dep_dictionary,dep_word_dictionary, between_word_dictionary, symmetric=False):
+        self.dep_word_features = [0] * len(dep_word_dictionary)
         self.dep_features = [0] * len(dep_dictionary)
         self.between_features = [0] * len(between_word_dictionary)
 
-        dep_path_feature_words = set(word_dictionary.keys())
+        dep_path_feature_words = set(dep_word_dictionary.keys())
         intersection_set = dep_path_feature_words.intersection(set(self.dep_word_path))
         for i in intersection_set:
-            self.dep_word_features[word_dictionary[i]] = 1
+            self.dep_word_features[dep_word_dictionary[i]] = 1
 
         between_feature_words = set(between_word_dictionary.keys())
         between_intersection_set = between_feature_words.intersection(set(self.between_entity_words))
@@ -148,13 +148,13 @@ class Instance(object):
             self.between_features[between_word_dictionary[i]] = 1
 
 
-        dep_path_string = ''.join(self.type_dependency_path)
+        dep_path_string = ' '.join(self.type_dependency_path)
         if symmetric == False:
             if dep_path_string in dep_dictionary:
                 self.dep_features[dep_dictionary[dep_path_string]] = 1
 
         else:
-            reverse_path_string = ''.join(self.reverse_type_dependency_path)
+            reverse_path_string = ' '.join(self.reverse_type_dependency_path)
             if dep_path_string in dep_dictionary:
                 self.dep_features[dep_dictionary[dep_path_string]] = 1
             else:
@@ -178,7 +178,6 @@ class Instance(object):
 
     def get_between_words(self):
         return self.between_entity_words
-
 
     def get_dep_word_path(self):
         '''Returns word path'''

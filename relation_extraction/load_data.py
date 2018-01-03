@@ -39,7 +39,7 @@ def build_dataset(words, occur_count = None):
     return data, count, dictionary, reversed_dictionary
 
 
-def build_instances_training(candidate_sentences, distant_interactions,reverse_distant_interactions, entity_1_list = None, entity_2_list = None, symmetric = False):
+def build_instances_training(candidate_sentences, distant_interactions, entity_1_list = None, entity_2_list = None, symmetric = False):
     path_word_vocabulary = []
     words_between_entities_vocabulary = []
     dep_type_vocabulary = []
@@ -71,26 +71,19 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
 
             entity_combos = set(itertools.product(entity_1,entity_2))
 
-            if len(entity_combos.intersection(distant_interactions)) > 0 or len(entity_combos.intersection(reverse_distant_interactions)) > 0:
+            if len(entity_combos.intersection(distant_interactions)) > 0:
                 candidate_instance = Instance(candidate_sentence, pair[0], pair[1], 1)
-
-                #check if check returned true because of reverse
-                if len(entity_combos.intersection(distant_interactions)) == 0:
-                    buffer_dep_path = candidate_instance.get_type_dependency_path()
-                    candidate_instance.type_dependency_path = candidate_instance.get_reverse_type_dependency_path()
-                    candidate_instance.reverse_type_dependency_path = buffer_dep_path
-
-
                 candidate_instances.append(candidate_instance)
+
                 path_word_vocabulary += candidate_instance.get_dep_word_path()
                 words_between_entities_vocabulary += candidate_instance.get_between_words()
 
                 if symmetric == False:
-                    dep_type_vocabulary.append(''.join(candidate_instance.get_type_dependency_path()))
+                    dep_type_vocabulary.append(' '.join(candidate_instance.get_type_dependency_path()))
                 else:
                     dep_type_vocabulary_set = set(dep_type_vocabulary)
-                    forward_dep_type_path = ''.join(candidate_instance.get_type_dependency_path())
-                    reverse_dep_type_path = ''.join(candidate_instance.get_reverse_type_dependency_path())
+                    forward_dep_type_path = ' '.join(candidate_instance.get_type_dependency_path())
+                    reverse_dep_type_path = ' '.join(candidate_instance.get_reverse_type_dependency_path())
                     if forward_dep_type_path in dep_type_vocabulary_set and reverse_dep_type_path not in dep_type_vocabulary_set:
                         dep_type_vocabulary.append(forward_dep_type_path)
                     elif forward_dep_type_path not in dep_type_vocabulary_set and reverse_dep_type_path in dep_type_vocabulary_set:
@@ -130,14 +123,17 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
             between_word_dictionary[c[0]] = array_place
             array_place += 1
 
+    print(dep_dictionary)
+    print(dep_path_word_dictionary)
+    print(between_word_dictionary)
 
     for ci in candidate_instances:
-        ci.build_features(dep_path_word_dictionary, dep_dictionary, between_word_dictionary, symmetric)
+        ci.build_features(dep_dictionary, dep_path_word_dictionary, between_word_dictionary, symmetric)
 
 
-    return candidate_instances, dep_path_word_dictionary, dep_dictionary, between_word_dictionary
+    return candidate_instances, dep_dictionary, dep_path_word_dictionary, between_word_dictionary
 
-def build_instances_testing(test_sentences, dep_path_word_dictionary, dep_dictionary, between_word_dictionary, distant_interactions, entity_1_list =  None, entity_2_list = None, symmetric = False):
+def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictionary, between_word_dictionary, distant_interactions, entity_1_list =  None, entity_2_list = None, symmetric = False):
     test_instances = []
     for test_sentence in test_sentences:
         entity_pairs = test_sentence.get_entity_pairs()
@@ -173,11 +169,11 @@ def build_instances_testing(test_sentences, dep_path_word_dictionary, dep_dictio
 
 
     for instance in test_instances:
-        instance.build_features(dep_path_word_dictionary, dep_dictionary, between_word_dictionary, symmetric)
+        instance.build_features(dep_dictionary, dep_path_word_dictionary,  between_word_dictionary, symmetric)
 
     return test_instances
 
-def build_instances_predict(predict_sentences, dep_path_word_dictionary, dep_dictionary, between_word_dictionary, entity_1_list = None, entity_2_list = None, symmetric = False):
+def build_instances_predict(predict_sentences, dep_dictionary, dep_path_word_dictionary, between_word_dictionary, entity_1_list = None, entity_2_list = None, symmetric = False):
     predict_instances = []
     for p_sentence in predict_sentences:
         entity_pairs = p_sentence.get_entity_pairs()
@@ -206,7 +202,7 @@ def build_instances_predict(predict_sentences, dep_path_word_dictionary, dep_dic
             predict_instances.append(candidate_instance)
 
     for instance in predict_instances:
-        instance.build_features(dep_path_word_dictionary, dep_dictionary, between_word_dictionary, symmetric)
+        instance.build_features(dep_dictionary, dep_path_word_dictionary,  between_word_dictionary, symmetric)
 
     return predict_instances
 
@@ -245,22 +241,18 @@ def load_xml(xml_file, entity_1, entity_2):
     return candidate_sentences
 
 
-def load_distant_kb(distant_kb_file, column_a, column_b,distant_rel_col):
+def load_distant_kb(distant_kb_file, column_a, column_b):
     distant_interactions = set()
-    reverse_distant_interactions = set()
     file = open(distant_kb_file,'rU')
     lines = file.readlines()
     file.close()
-    print(len(lines))
+
     for l in lines:
         split_line = l.split('\t')
         tuple = (split_line[column_a],split_line[column_b])
-        if split_line[distant_rel_col].endswith('by') is False:
-            distant_interactions.add(tuple)
-        else:
-            reverse_distant_interactions.add(tuple)
+        distant_interactions.add(tuple)
 
-    return distant_interactions,reverse_distant_interactions
+    return distant_interactions
 
 def load_id_list(id_list,column_a):
     id_set = set()
