@@ -149,7 +149,7 @@ class Instance(object):
 
 
         dep_path_string = ' '.join(self.type_dependency_path)
-        if symmetric == False:
+        if symmetric is False:
             if dep_path_string in dep_dictionary:
                 self.dep_features[dep_dictionary[dep_path_string]] = 1
 
