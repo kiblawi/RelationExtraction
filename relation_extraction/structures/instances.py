@@ -46,9 +46,14 @@ class Instance(object):
         self.build_reverse_type_path()
         self.dep_word_path = []
         self.build_dep_word_path()
+        self.dep_type_word_elements = []
+        self.build_dep_type_word_elements()
+        self.reverse_dep_type_word_elements = []
+        self.build_reverse_dep_type_word_elements()
         self.between_entity_words = []
         self.build_between_entity_words()
         self.dep_word_features = []
+        self.dep_type_word_element_features = []
         self.between_features = []
         self.dep_features = []
         self.features = []
@@ -93,22 +98,6 @@ class Instance(object):
             type_path.append(dep_type)
         self.reverse_type_dependency_path = type_path
 
-        '''
-        reverse_path = []
-        reverse_path.append(self.type_dependency_path[0])
-
-        for i in range(len(self.type_dependency_path)-2,0,-1):
-            dep_type = self.type_dependency_path[i]
-            if dep_type.startswith('-'):
-                rev_type = dep_type[1:]
-            else:
-                rev_type = '-' + dep_type
-            reverse_path.append(rev_type)
-        reverse_path.append(self.type_dependency_path[-1])
-
-        self.reverse_type_dependency_path = reverse_path
-        '''
-
     def get_type_dependency_path(self):
         '''Returns type dependency path'''
         return self.type_dependency_path
@@ -131,16 +120,68 @@ class Instance(object):
             word_path.append(current_word)
         self.dep_word_path = word_path
 
+    def build_dep_type_word_elements(self):
+        path_elements = []
+        for i in range(len(self.dependency_path)-1):
+            dep_start = self.dependency_path[i]
+            dep_end = self.dependency_path[i+1]
+            dep_type = self.sentence.get_dependency_type(dep_start,dep_end)
+            if i == 0:
+                start_word = ''
+            else:
+                start_position = self.dependency_path[i]
+                start_word = self.sentence.get_token(start_position).get_lemma()
+            if i+1 == len(self.dependency_path):
+                end_word = ''
+            else:
+                end_position = self.dependency_path[i+1]
+                end_word = self.sentence.get_token(end_position).get_lemma()
+            dep_element = start_word + dep_type + end_word
+            path_elements.append(dep_element)
+        self.dep_type_word_elements = path_elements
 
-    def build_features(self, dep_dictionary,dep_word_dictionary, between_word_dictionary, symmetric=False):
+    def get_dep_type_word_elements(self):
+        return self.dep_type_word_elements
+
+    def build_reverse_dep_type_word_elements(self):
+        path_elements = []
+        reversed_dependency_path = list(reversed(self.dependency_path))
+        for i in range(len(reversed_dependency_path)-1):
+            dep_start = reversed_dependency_path[i]
+            dep_end = reversed_dependency_path[i+1]
+            dep_type = self.sentence.get_dependency_type(dep_start,dep_end)
+            if i == 0:
+                start_word = ''
+            else:
+                start_position = reversed_dependency_path[i]
+                start_word = self.sentence.get_token(start_position).get_lemma()
+            if i+1 == len(reversed_dependency_path):
+                end_word = ''
+            else:
+                end_position= reversed_dependency_path[i+1]
+                end_word = self.sentence.get_token(end_position).get_lemma()
+            dep_element = start_word + dep_type + end_word
+            path_elements.append(dep_element)
+        self.reverse_dep_type_word_elements = path_elements
+
+    def get_reverse_dep_type_word_elements(self):
+        return self.reverse_dep_type_word_elements
+
+    def build_features(self, dep_dictionary,dep_word_dictionary, dep_type_word_element_dictionary, between_word_dictionary, symmetric=False):
         self.dep_word_features = [0] * len(dep_word_dictionary)
         self.dep_features = [0] * len(dep_dictionary)
+        self.dep_type_word_element_features = [0] * len(dep_type_word_element_dictionary)
         self.between_features = [0] * len(between_word_dictionary)
 
         dep_path_feature_words = set(dep_word_dictionary.keys())
         intersection_set = dep_path_feature_words.intersection(set(self.dep_word_path))
         for i in intersection_set:
             self.dep_word_features[dep_word_dictionary[i]] = 1
+
+        dep_type_word_element_feature_words = set(dep_type_word_element_dictionary.keys())
+        intersection_set = dep_type_word_element_feature_words.intersection(set(self.dep_type_word_elements))
+        for i in intersection_set:
+            self.dep_type_word_element_features[dep_type_word_element_dictionary[i]] = 1
 
         between_feature_words = set(between_word_dictionary.keys())
         between_intersection_set = between_feature_words.intersection(set(self.between_entity_words))
@@ -161,7 +202,7 @@ class Instance(object):
                 if reverse_path_string in dep_dictionary:
                     self.dep_features[dep_dictionary[reverse_path_string]] = 1
 
-        self.features = self.dep_features + self.dep_word_features + self.between_features
+        self.features = self.dep_features + self.dep_word_features + self.dep_type_word_element_features + self.between_features
 
     def build_between_entity_words(self):
         between_words = []

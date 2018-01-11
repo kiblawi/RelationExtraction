@@ -81,12 +81,12 @@ def distant_train(model_out, sentence_file, distant_file, distant_e1_col, distan
         fold_test_sentences = fold_chunks.pop(i)
         fold_training_sentences = list(itertools.chain.from_iterable(fold_chunks))
 
-        fold_training_instances, fold_dep_dictionary, fold_dep_word_dictionary, fold_between_word_dictionary = load_data.build_instances_training(
+        fold_training_instances, fold_dep_dictionary, fold_dep_word_dictionary, fold_dep_element_dictionary, fold_between_word_dictionary = load_data.build_instances_training(
             fold_training_sentences, distant_interactions, reverse_distant_interactions, entity_1_ids, entity_2_ids, symmetric)
 
         #print('# of train instances: ' + str(len(fold_training_instances)))
         print(len(fold_training_instances))
-        fold_test_instances = load_data.build_instances_testing(fold_test_sentences, fold_dep_dictionary, fold_dep_word_dictionary,
+        fold_test_instances = load_data.build_instances_testing(fold_test_sentences, fold_dep_dictionary, fold_dep_word_dictionary,fold_dep_element_dictionary,
                                                                 fold_between_word_dictionary,distant_interactions,reverse_distant_interactions, entity_1_ids,entity_2_ids,symmetric)
         #print('# of test instances: ' + str(len(fold_test_instances)))
         #print('training')

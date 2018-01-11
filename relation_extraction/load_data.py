@@ -43,6 +43,7 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
     path_word_vocabulary = []
     words_between_entities_vocabulary = []
     dep_type_vocabulary = []
+    dep_type_word_elements_vocabulary = []
     candidate_instances = []
     for candidate_sentence in candidate_sentences:
         entity_pairs = candidate_sentence.get_entity_pairs()
@@ -78,16 +79,22 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
                 reverse_train_instance.type_dependency_path = reverse_train_instance.get_reverse_type_dependency_path()
                 reverse_train_instance.reverse_type_dependency_path = buffer_dep_path
 
+                buffer_dep_type_word_elements = reverse_train_instance.get_dep_type_word_elements()
+                reverse_train_instance.dep_type_word_elements = reverse_train_instance.get_reverse_dep_type_word_elements()
+                reverse_train_instance.reverse_dep_type_word_elements = buffer_dep_type_word_elements
+
                 # check if check returned true because of reverse
                 if len(entity_combos.intersection(distant_interactions)) > 0:
                     path_word_vocabulary += forward_train_instance.get_dep_word_path()
                     words_between_entities_vocabulary += forward_train_instance.get_between_words()
+                    dep_type_word_elements_vocabulary += forward_train_instance.get_dep_type_word_elements()
                     dep_type_vocabulary.append(' '.join(forward_train_instance.get_type_dependency_path()))
                     forward_train_instance.set_label(1)
                     candidate_instances.append(forward_train_instance)
                 elif len(entity_combos.intersection(reverse_distant_interactions)) > 0:
                     path_word_vocabulary += reverse_train_instance.get_dep_word_path()
                     words_between_entities_vocabulary += reverse_train_instance.get_between_words()
+                    dep_type_word_elements_vocabulary += reverse_train_instance.get_dep_type_word_elements()
                     dep_type_vocabulary.append(' '.join(reverse_train_instance.get_type_dependency_path()))
                     reverse_train_instance.set_label(1)
                     candidate_instances.append(reverse_train_instance)
@@ -98,6 +105,8 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
                     words_between_entities_vocabulary += reverse_train_instance.get_between_words()
                     dep_type_vocabulary.append(' '.join(forward_train_instance.get_type_dependency_path()))
                     dep_type_vocabulary.append(' '.join(reverse_train_instance.get_type_dependency_path()))
+                    dep_type_word_elements_vocabulary += forward_train_instance.get_dep_type_word_elements()
+                    dep_type_word_elements_vocabulary += reverse_train_instance.get_dep_type_word_elements()
                     candidate_instances.append(forward_train_instance)
                     candidate_instances.append(reverse_train_instance)
 
@@ -112,13 +121,18 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
                 forward_dep_type_path = ' '.join(candidate_instance.get_type_dependency_path())
                 reverse_dep_type_path = ' '.join(candidate_instance.get_reverse_type_dependency_path())
 
+
+
                 if forward_dep_type_path in dep_type_vocabulary_set:
                     dep_type_vocabulary.append(forward_dep_type_path)
+                    dep_type_word_elements_vocabulary += candidate_instance.get_dep_type_word_elements()
                 else:
                     if reverse_dep_type_path in dep_type_vocabulary_set:
                         dep_type_vocabulary.append(reverse_dep_type_path)
+                        dep_type_word_elements_vocabulary += candidate_instance.get_reverse_dep_type_word_elements()
                     else:
                         dep_type_vocabulary.append(forward_dep_type_path)
+                        dep_type_word_elements_vocabulary += candidate_instance.get_dep_type_word_elements()
 
                 if len(entity_combos.intersection(distant_interactions)) > 0 or \
                                 len(entity_combos.intersection(reverse_distant_interactions)) > 0:
@@ -129,10 +143,12 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
                 candidate_instances.append(candidate_instance)
 
 
-    data, count, dictionary, reversed_dictionary = build_dataset(path_word_vocabulary)
+    data, count, dep_path_word_dictionary, reversed_dictionary = build_dataset(path_word_vocabulary)
     dep_data, dep_count, dep_dictionary, dep_reversed_dictionary = build_dataset(dep_type_vocabulary)
-    between_data, between_count, between_dictionary, between_reversed_dictionary = build_dataset(words_between_entities_vocabulary)
+    dep_element_data, dep_element_count, dep_element_dictionary, dep_element_reversed_dictionary = build_dataset(dep_type_word_elements_vocabulary)
+    between_data, between_count, between_word_dictionary, between_reversed_dictionary = build_dataset(words_between_entities_vocabulary)
 
+    '''
     dep_path_word_dictionary = {}
     array_place = 0
     for c in count:
@@ -144,18 +160,20 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
     for c in between_count:
         between_word_dictionary[c[0]] = array_place
         array_place += 1
-
-    #print(dep_dictionary)
-    #print(dep_path_word_dictionary)
-    #print(between_word_dictionary)
+    '''
+    print(dep_dictionary)
+    print(dep_path_word_dictionary)
+    print(between_word_dictionary)
+    print(dep_element_dictionary)
 
     for ci in candidate_instances:
-        ci.build_features(dep_dictionary, dep_path_word_dictionary, between_word_dictionary, symmetric)
+        ci.build_features(dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary, symmetric)
 
 
-    return candidate_instances, dep_dictionary, dep_path_word_dictionary, between_word_dictionary
+    return candidate_instances, dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary
 
-def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictionary, between_word_dictionary, distant_interactions,reverse_distant_interactions, entity_1_list =  None, entity_2_list = None, symmetric = False):
+def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictionary, between_word_dictionary, dep_element_dictionary,
+                            distant_interactions,reverse_distant_interactions, entity_1_list =  None, entity_2_list = None, symmetric = False):
     test_instances = []
     for test_sentence in test_sentences:
         entity_pairs = test_sentence.get_entity_pairs()
@@ -188,6 +206,10 @@ def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictio
                 buffer_dep_path = reverse_test_instance.get_type_dependency_path()
                 reverse_test_instance.type_dependency_path = reverse_test_instance.get_reverse_type_dependency_path()
                 reverse_test_instance.reverse_type_dependency_path = buffer_dep_path
+                buffer_dep_elements = reverse_test_instance.get_dep_type_word_elements()
+                reverse_test_instance.dep_type_word_elements = reverse_test_instance.get_reverse_dep_type_word_elements()
+                reverse_test_instance.reverse_dep_type_word_elements = buffer_dep_elements
+
                 # check if check returned true because of reverse
                 if len(entity_combos.intersection(distant_interactions)) > 0 :
                     forward_test_instance.set_label(1)
@@ -213,7 +235,7 @@ def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictio
 
 
     for instance in test_instances:
-        instance.build_features(dep_dictionary, dep_path_word_dictionary,  between_word_dictionary, symmetric)
+        instance.build_features(dep_dictionary, dep_path_word_dictionary, dep_element_dictionary,  between_word_dictionary, symmetric)
 
     return test_instances
 
