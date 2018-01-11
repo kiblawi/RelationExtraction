@@ -167,7 +167,7 @@ class Instance(object):
     def get_reverse_dep_type_word_elements(self):
         return self.reverse_dep_type_word_elements
 
-    def build_features(self, dep_dictionary,dep_word_dictionary, dep_type_word_element_dictionary, between_word_dictionary, symmetric=False):
+    def build_features(self, dep_dictionary, dep_word_dictionary, dep_type_word_element_dictionary, between_word_dictionary, symmetric=False):
         self.dep_word_features = [0] * len(dep_word_dictionary)
         self.dep_features = [0] * len(dep_dictionary)
         self.dep_type_word_element_features = [0] * len(dep_type_word_element_dictionary)
@@ -203,7 +203,6 @@ class Instance(object):
                     self.dep_features[dep_dictionary[reverse_path_string]] = 1
 
         self.features = self.dep_features + self.dep_word_features + self.dep_type_word_element_features + self.between_features
-
     def build_between_entity_words(self):
         between_words = []
         for i in range(min(self.start,self.end) + 1,max(self.start,self.end)):

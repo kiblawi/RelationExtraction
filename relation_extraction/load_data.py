@@ -172,7 +172,7 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
 
     return candidate_instances, dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary
 
-def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictionary, between_word_dictionary, dep_element_dictionary,
+def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary,
                             distant_interactions,reverse_distant_interactions, entity_1_list =  None, entity_2_list = None, symmetric = False):
     test_instances = []
     for test_sentence in test_sentences:
