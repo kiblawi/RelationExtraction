@@ -75,8 +75,8 @@ def distant_train(model_out, sentence_file, distant_file, distant_e1_col, distan
     all_chunks = [training_sentences[i:i + ten_fold_length] for i in xrange(0, len(training_sentences), ten_fold_length)]
 
     for i in range(len(all_chunks)):
-        print('building')
-        print(i)
+        #print('building')
+        print('Fold #: ' + str(i))
         fold_chunks = all_chunks[:]
         fold_test_sentences = fold_chunks.pop(i)
         fold_training_sentences = list(itertools.chain.from_iterable(fold_chunks))
@@ -84,18 +84,21 @@ def distant_train(model_out, sentence_file, distant_file, distant_e1_col, distan
         fold_training_instances, fold_dep_dictionary, fold_dep_word_dictionary, fold_between_word_dictionary = load_data.build_instances_training(
             fold_training_sentences, distant_interactions, reverse_distant_interactions, entity_1_ids, entity_2_ids, symmetric)
 
+        #print('# of train instances: ' + str(len(fold_training_instances)))
         print(len(fold_training_instances))
-
         fold_test_instances = load_data.build_instances_testing(fold_test_sentences, fold_dep_dictionary, fold_dep_word_dictionary,
                                                                 fold_between_word_dictionary,distant_interactions,reverse_distant_interactions, entity_1_ids,entity_2_ids,symmetric)
+        #print('# of test instances: ' + str(len(fold_test_instances)))
+        #print('training')
         print(len(fold_test_instances))
-        print('training')
         X = []
         y = []
         for t in fold_training_instances:
             X.append(t.features)
             y.append(t.label)
 
+        print(y.count(1))
+        print(len(fold_training_instances)-y.count(1))
         fold_train_X = np.array(X)
         fold_train_y = np.array(y)
 
@@ -112,9 +115,14 @@ def distant_train(model_out, sentence_file, distant_file, distant_e1_col, distan
         fold_test_y = np.array(test_y)
         predicted = model.predict(fold_test_X)
 
-        fold_precision = metrics.average_precision_score(fold_test_y,predicted)
+        fold_precision = metrics.precision_score(fold_test_y,predicted)
+        #print('Precision: ' + str(fold_precision))
         print(fold_precision)
+        fold_recall = metrics.recall_score(fold_test_y,predicted)
+        #print('Recall: ' + str(fold_recall))
+        print(fold_recall)
         fold_f1 = metrics.f1_score(fold_test_y,predicted)
+        #print('F1-Score: ' + str(fold_f1))
         print(fold_f1)
 
 

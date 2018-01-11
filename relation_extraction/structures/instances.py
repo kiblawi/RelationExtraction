@@ -123,7 +123,7 @@ class Instance(object):
             current_pos = self.dependency_path[i]
             current_token = self.sentence.get_token(current_pos)
             current_word = current_token.get_lemma()
-            if current_token.get_ner() != 'O' and current_token.get_ner() != 'GENE':
+            if current_token.get_normalized_ner() is not None:
                 if 'GENE' in current_token.get_ner():
                     current_word = 'GENE'
                 else:
@@ -168,7 +168,7 @@ class Instance(object):
         for i in range(min(self.start,self.end) + 1,max(self.start,self.end)):
             current_token = self.sentence.get_token(i)
             current_word = current_token.get_lemma()
-            if current_token.get_ner() != 'O' and current_token.get_ner() != 'GENE':
+            if current_token.get_normalized_ner() is not None:
                 if 'GENE' in current_token.get_ner():
                     current_word = 'GENE'
                 else:

@@ -78,23 +78,29 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
                 reverse_train_instance.type_dependency_path = reverse_train_instance.get_reverse_type_dependency_path()
                 reverse_train_instance.reverse_type_dependency_path = buffer_dep_path
 
-                path_word_vocabulary += forward_train_instance.get_dep_word_path()
-                path_word_vocabulary += reverse_train_instance.get_dep_word_path()
-                words_between_entities_vocabulary += forward_train_instance.get_between_words()
-                words_between_entities_vocabulary += reverse_train_instance.get_between_words()
-                dep_type_vocabulary.append(' '.join(forward_train_instance.get_type_dependency_path()))
-                dep_type_vocabulary.append(' '.join(reverse_train_instance.get_type_dependency_path()))
-
                 # check if check returned true because of reverse
                 if len(entity_combos.intersection(distant_interactions)) > 0:
+                    path_word_vocabulary += forward_train_instance.get_dep_word_path()
+                    words_between_entities_vocabulary += forward_train_instance.get_between_words()
+                    dep_type_vocabulary.append(' '.join(forward_train_instance.get_type_dependency_path()))
                     forward_train_instance.set_label(1)
+                    candidate_instances.append(forward_train_instance)
                 elif len(entity_combos.intersection(reverse_distant_interactions)) > 0:
+                    path_word_vocabulary += reverse_train_instance.get_dep_word_path()
+                    words_between_entities_vocabulary += reverse_train_instance.get_between_words()
+                    dep_type_vocabulary.append(' '.join(reverse_train_instance.get_type_dependency_path()))
                     reverse_train_instance.set_label(1)
+                    candidate_instances.append(reverse_train_instance)
                 else:
-                    pass
+                    path_word_vocabulary += forward_train_instance.get_dep_word_path()
+                    path_word_vocabulary += reverse_train_instance.get_dep_word_path()
+                    words_between_entities_vocabulary += forward_train_instance.get_between_words()
+                    words_between_entities_vocabulary += reverse_train_instance.get_between_words()
+                    dep_type_vocabulary.append(' '.join(forward_train_instance.get_type_dependency_path()))
+                    dep_type_vocabulary.append(' '.join(reverse_train_instance.get_type_dependency_path()))
+                    candidate_instances.append(forward_train_instance)
+                    candidate_instances.append(reverse_train_instance)
 
-                candidate_instances.append(forward_train_instance)
-                candidate_instances.append(reverse_train_instance)
 
             #if symmetric is true
             else:
@@ -114,9 +120,8 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
                     else:
                         dep_type_vocabulary.append(forward_dep_type_path)
 
-                if len(entity_combos.intersection(distant_interactions)) > 0:
-                    candidate_instance.set_label(1)
-                elif len(entity_combos.intersection(reverse_distant_interactions)) > 0:
+                if len(entity_combos.intersection(distant_interactions)) > 0 or \
+                                len(entity_combos.intersection(reverse_distant_interactions)) > 0:
                     candidate_instance.set_label(1)
                 else:
                     pass
@@ -127,31 +132,22 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
     data, count, dictionary, reversed_dictionary = build_dataset(path_word_vocabulary)
     dep_data, dep_count, dep_dictionary, dep_reversed_dictionary = build_dataset(dep_type_vocabulary)
     between_data, between_count, between_dictionary, between_reversed_dictionary = build_dataset(words_between_entities_vocabulary)
-    common_words_file = open('./static_data/common_words.txt','rU')
-    lines = common_words_file.readlines()
-    common_words_file.close()
-
-    common_words = set()
-    for l in lines:
-        common_words.add(l.split()[0])
 
     dep_path_word_dictionary = {}
     array_place = 0
     for c in count:
-        if c[0] not in common_words:
-            dep_path_word_dictionary[c[0]] = array_place
-            array_place += 1
+        dep_path_word_dictionary[c[0]] = array_place
+        array_place += 1
 
     between_word_dictionary = {}
     array_place = 0
     for c in between_count:
-        if c[0] not in common_words:
-            between_word_dictionary[c[0]] = array_place
-            array_place += 1
+        between_word_dictionary[c[0]] = array_place
+        array_place += 1
 
-    print(dep_dictionary)
-    print(dep_path_word_dictionary)
-    print(between_word_dictionary)
+    #print(dep_dictionary)
+    #print(dep_path_word_dictionary)
+    #print(between_word_dictionary)
 
     for ci in candidate_instances:
         ci.build_features(dep_dictionary, dep_path_word_dictionary, between_word_dictionary, symmetric)
