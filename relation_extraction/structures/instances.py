@@ -39,25 +39,42 @@ class Instance(object):
         self.end = end
         self.label = label
         self.dependency_path = []
-        self.type_dependency_path = []
-        self.reverse_type_dependency_path = []
-        self.build_dependency_path()
-        self.build_type_dependency_path()
-        self.build_reverse_type_path()
         self.dep_word_path = []
-        self.build_dep_word_path()
         self.dep_type_word_elements = []
-        self.build_dep_type_word_elements()
-        self.reverse_dep_type_word_elements = []
-        self.build_reverse_dep_type_word_elements()
+        self.type_dependency_path = []
         self.between_entity_words = []
-        self.build_between_entity_words()
-        self.dep_word_features = []
-        self.dep_type_word_element_features = []
-        self.between_features = []
-        self.dep_features = []
         self.features = []
+        self.build_dependency_path()
+        self.build_feature_elements()
+        self.build_between_entity_words()
+        #self.reverse_type_dependency_path = []
+        #self.build_type_dependency_path()
+        #self.build_reverse_type_path()
+        #self.build_dep_word_path()
+        #self.build_dep_type_word_elements()
+        #self.reverse_dep_type_word_elements = []
+        #self.build_reverse_dep_type_word_elements()
+        #self.dep_word_features = []
+        #self.dep_type_word_element_features = []
+        #self.between_features = []
+        #self.dep_features = []
 
+
+    def set_label(self,label):
+        '''Sets the label of the candidate sentence (positive/negative)'''
+        self.label = label
+
+    def get_label(self):
+        return self.label
+
+    def get_start(self):
+        return self.start
+
+    def get_end(self):
+        return self.end
+
+    def get_sentence(self):
+        return self.sentence
 
     def build_dependency_path(self):
         '''Builds and returns shortest dependency path by calling djikstras algorithm'''
@@ -76,6 +93,108 @@ class Instance(object):
     def get_dependency_path(self):
         '''Returns dependency path'''
         return self.dependency_path
+
+
+    def build_feature_elements(self):
+        path_elements = []
+        type_path = []
+        word_path = []
+        for i in range(len(self.dependency_path)-1):
+            dep_start = self.dependency_path[i]
+            dep_end = self.dependency_path[i + 1]
+            dep_type = self.sentence.get_dependency_type(dep_start, dep_end)
+            start_token = self.sentence.get_token(dep_start)
+            end_token = self.sentence.get_token(dep_end)
+            start_word = start_token.get_lemma()
+            end_word = end_token.get_lemma()
+            if start_token.get_normalized_ner() is not None:
+                if 'GENE' in start_token.get_ner():
+                    start_word = 'GENE'
+                else:
+                    start_word = start_token.get_ner()
+            if end_token.get_normalized_ner() is not None:
+                if 'GENE' in end_token.get_ner():
+                    end_word = 'GENE'
+                else:
+                    end_word = end_token.get_ner()
+            if i == 0:
+                start_word = ''
+            if i+1 == len(self.dependency_path):
+                end_word = ''
+            dep_element = start_word + dep_type + end_word
+            word_path.append(start_word)
+            type_path.append(dep_type)
+            path_elements.append(dep_element)
+        self.type_dependency_path = type_path
+        self.dep_word_path = word_path
+        self.dep_type_word_elements = path_elements
+
+    def get_dep_word_path(self):
+        '''Returns word path'''
+        return self.dep_word_path
+
+    def get_type_dependency_path(self):
+        '''Returns type dependency path'''
+        return self.type_dependency_path
+
+    def get_dep_type_word_elements(self):
+        return self.dep_type_word_elements
+
+    def build_between_entity_words(self):
+        between_words = []
+        for i in range(min(self.start,self.end) + 1,max(self.start,self.end)):
+            current_token = self.sentence.get_token(i)
+            current_word = current_token.get_lemma()
+            if current_token.get_normalized_ner() is not None:
+                if 'GENE' in current_token.get_ner():
+                    current_word = 'GENE'
+                else:
+                    current_word = current_token.get_ner()
+            between_words.append(current_word)
+        self.between_entity_words = between_words
+
+    def get_between_words(self):
+        return self.between_entity_words
+
+
+
+    def build_features(self, dep_dictionary, dep_word_dictionary, dep_type_word_element_dictionary, between_word_dictionary):
+        dep_word_features = [0] * len(dep_word_dictionary)
+        dep_features = [0] * len(dep_dictionary)
+        dep_type_word_element_features = [0] * len(dep_type_word_element_dictionary)
+        between_features = [0] * len(between_word_dictionary)
+
+        dep_path_feature_words = set(dep_word_dictionary.keys())
+        intersection_set = dep_path_feature_words.intersection(set(self.dep_word_path))
+        for i in intersection_set:
+            dep_word_features[dep_word_dictionary[i]] = 1
+
+        dep_type_word_element_feature_words = set(dep_type_word_element_dictionary.keys())
+        intersection_set = dep_type_word_element_feature_words.intersection(set(self.dep_type_word_elements))
+        for i in intersection_set:
+            dep_type_word_element_features[dep_type_word_element_dictionary[i]] = 1
+
+        between_feature_words = set(between_word_dictionary.keys())
+        between_intersection_set = between_feature_words.intersection(set(self.between_entity_words))
+        for i in between_intersection_set:
+            between_features[between_word_dictionary[i]] = 1
+
+        dep_path_string = ' '.join(self.type_dependency_path)
+        if dep_path_string in dep_dictionary:
+            dep_features[dep_dictionary[dep_path_string]] = 1
+
+        self.features = dep_features + dep_word_features + dep_type_word_element_features + between_features
+
+
+
+
+
+
+
+
+
+
+
 
     def build_type_dependency_path(self):
         '''Returns shortest dependency path based on dependency types'''
@@ -98,9 +217,7 @@ class Instance(object):
             type_path.append(dep_type)
         self.reverse_type_dependency_path = type_path
 
-    def get_type_dependency_path(self):
-        '''Returns type dependency path'''
-        return self.type_dependency_path
+
 
     def get_reverse_type_dependency_path(self):
         return self.reverse_type_dependency_path
@@ -140,8 +257,7 @@ class Instance(object):
             path_elements.append(dep_element)
         self.dep_type_word_elements = path_elements
 
-    def get_dep_type_word_elements(self):
-        return self.dep_type_word_elements
+
 
     def build_reverse_dep_type_word_elements(self):
         path_elements = []
@@ -167,75 +283,9 @@ class Instance(object):
     def get_reverse_dep_type_word_elements(self):
         return self.reverse_dep_type_word_elements
 
-    def build_features(self, dep_dictionary, dep_word_dictionary, dep_type_word_element_dictionary, between_word_dictionary, symmetric=False):
-        self.dep_word_features = [0] * len(dep_word_dictionary)
-        self.dep_features = [0] * len(dep_dictionary)
-        self.dep_type_word_element_features = [0] * len(dep_type_word_element_dictionary)
-        self.between_features = [0] * len(between_word_dictionary)
-
-        dep_path_feature_words = set(dep_word_dictionary.keys())
-        intersection_set = dep_path_feature_words.intersection(set(self.dep_word_path))
-        for i in intersection_set:
-            self.dep_word_features[dep_word_dictionary[i]] = 1
-
-        dep_type_word_element_feature_words = set(dep_type_word_element_dictionary.keys())
-        intersection_set = dep_type_word_element_feature_words.intersection(set(self.dep_type_word_elements))
-        for i in intersection_set:
-            self.dep_type_word_element_features[dep_type_word_element_dictionary[i]] = 1
-
-        between_feature_words = set(between_word_dictionary.keys())
-        between_intersection_set = between_feature_words.intersection(set(self.between_entity_words))
-        for i in between_intersection_set:
-            self.between_features[between_word_dictionary[i]] = 1
 
 
-        dep_path_string = ' '.join(self.type_dependency_path)
-        if symmetric is False:
-            if dep_path_string in dep_dictionary:
-                self.dep_features[dep_dictionary[dep_path_string]] = 1
-
-        else:
-            reverse_path_string = ' '.join(self.reverse_type_dependency_path)
-            if dep_path_string in dep_dictionary:
-                self.dep_features[dep_dictionary[dep_path_string]] = 1
-            else:
-                if reverse_path_string in dep_dictionary:
-                    self.dep_features[dep_dictionary[reverse_path_string]] = 1
-
-        self.features = self.dep_features + self.dep_word_features + self.dep_type_word_element_features + self.between_features
-    def build_between_entity_words(self):
-        between_words = []
-        for i in range(min(self.start,self.end) + 1,max(self.start,self.end)):
-            current_token = self.sentence.get_token(i)
-            current_word = current_token.get_lemma()
-            if current_token.get_normalized_ner() is not None:
-                if 'GENE' in current_token.get_ner():
-                    current_word = 'GENE'
-                else:
-                    current_word = current_token.get_ner()
-            between_words.append(current_word)
-        self.between_entity_words = between_words
-
-    def get_between_words(self):
-        return self.between_entity_words
 
 
-    def get_dep_word_path(self):
-        '''Returns word path'''
-        return self.dep_word_path
 
-    def set_label(self,label):
-        '''Sets the label of the candidate sentence (positive/negative)'''
-        self.label = label
 
-    def get_label(self):
-        return self.label
-
-    def get_start(self):
-        return self.start
-
-    def get_end(self):
-        return self.end
-
-    def get_sentence(self):
-        return self.sentence

@@ -31,9 +31,9 @@ def predict_sentences(model_file, sentence_file, entity_1, entity_1_file, entity
 
     predict_candidate_sentences = load_data.load_xml(sentence_file, entity_1, entity_2)
 
-    model, dep_dictionary, dep_word_dictionary, between_word_dictionary = joblib.load(model_file)
+    model, dep_dictionary, dep_word_dictionary, dep_element_dictionary, between_word_dictionary = joblib.load(model_file)
     predict_instances = load_data.build_instances_predict(predict_candidate_sentences, dep_dictionary,
-                                                          dep_word_dictionary,
+                                                          dep_word_dictionary, dep_element_dictionary,
                                                           between_word_dictionary, entity_1_ids, entity_2_ids,
                                                           symmetric)
 
@@ -130,7 +130,7 @@ def distant_train(model_out, sentence_file, distant_file, distant_e1_col, distan
 
 
     '''
-    training_instances, dep_dictionary, dep_word_dictionary, between_word_dictionary = load_data.build_instances_training(
+    training_instances, dep_dictionary, dep_word_dictionary, element_dictionary, between_word_dictionary = load_data.build_instances_training(
         training_sentences, distant_interactions, reverse_distant_interactions, entity_1_ids, entity_2_ids, symmetric)
 
     X = []

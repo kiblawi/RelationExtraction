@@ -72,17 +72,10 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
 
             entity_combos = set(itertools.product(entity_1,entity_2))
 
+            forward_train_instance = Instance(candidate_sentence, pair[0], pair[1], 0)
+            reverse_train_instance = Instance(candidate_sentence, pair[1], pair[0], 0)
+
             if symmetric is False:
-                forward_train_instance = Instance(candidate_sentence, pair[0], pair[1], 0)
-                reverse_train_instance = Instance(candidate_sentence, pair[0], pair[1], 0)
-                buffer_dep_path = reverse_train_instance.get_type_dependency_path()
-                reverse_train_instance.type_dependency_path = reverse_train_instance.get_reverse_type_dependency_path()
-                reverse_train_instance.reverse_type_dependency_path = buffer_dep_path
-
-                buffer_dep_type_word_elements = reverse_train_instance.get_dep_type_word_elements()
-                reverse_train_instance.dep_type_word_elements = reverse_train_instance.get_reverse_dep_type_word_elements()
-                reverse_train_instance.reverse_dep_type_word_elements = buffer_dep_type_word_elements
-
                 # check if check returned true because of reverse
                 if len(entity_combos.intersection(distant_interactions)) > 0:
                     path_word_vocabulary += forward_train_instance.get_dep_word_path()
@@ -113,34 +106,35 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
 
             #if symmetric is true
             else:
-                candidate_instance = Instance(candidate_sentence, pair[0], pair[1], 0)
-                path_word_vocabulary += candidate_instance.get_dep_word_path()
-                words_between_entities_vocabulary += candidate_instance.get_between_words()
-
+                if len(entity_combos.intersection(distant_interactions)) > 0 or \
+                                len(entity_combos.intersection(reverse_distant_interactions)) > 0:
+                    forward_train_instance.set_label(1)
+                    reverse_train_instance.set_label(1)
+                else:
+                    pass
                 dep_type_vocabulary_set = set(dep_type_vocabulary)
-                forward_dep_type_path = ' '.join(candidate_instance.get_type_dependency_path())
-                reverse_dep_type_path = ' '.join(candidate_instance.get_reverse_type_dependency_path())
-
-
+                forward_dep_type_path = ' '.join(forward_train_instance.get_type_dependency_path())
+                reverse_dep_type_path = ' '.join(reverse_train_instance.get_type_dependency_path())
 
                 if forward_dep_type_path in dep_type_vocabulary_set:
                     dep_type_vocabulary.append(forward_dep_type_path)
-                    dep_type_word_elements_vocabulary += candidate_instance.get_dep_type_word_elements()
+                    path_word_vocabulary += forward_train_instance.get_dep_word_path()
+                    dep_type_word_elements_vocabulary += forward_train_instance.get_dep_type_word_elements()
+                    words_between_entities_vocabulary += forward_train_instance.get_between_words()
+                    candidate_instances.append(forward_train_instance)
                 else:
                     if reverse_dep_type_path in dep_type_vocabulary_set:
                         dep_type_vocabulary.append(reverse_dep_type_path)
-                        dep_type_word_elements_vocabulary += candidate_instance.get_reverse_dep_type_word_elements()
+                        path_word_vocabulary += reverse_train_instance.get_dep_word_path()
+                        dep_type_word_elements_vocabulary += reverse_train_instance.get_dep_type_word_elements()
+                        words_between_entities_vocabulary += reverse_train_instance.get_between_words()
+                        candidate_instances.append(reverse_train_instance)
                     else:
                         dep_type_vocabulary.append(forward_dep_type_path)
-                        dep_type_word_elements_vocabulary += candidate_instance.get_dep_type_word_elements()
-
-                if len(entity_combos.intersection(distant_interactions)) > 0 or \
-                                len(entity_combos.intersection(reverse_distant_interactions)) > 0:
-                    candidate_instance.set_label(1)
-                else:
-                    pass
-
-                candidate_instances.append(candidate_instance)
+                        path_word_vocabulary += forward_train_instance.get_dep_word_path()
+                        dep_type_word_elements_vocabulary += forward_train_instance.get_dep_type_word_elements()
+                        words_between_entities_vocabulary += forward_train_instance.get_between_words()
+                        candidate_instances.append(forward_train_instance)
 
 
     data, count, dep_path_word_dictionary, reversed_dictionary = build_dataset(path_word_vocabulary)
@@ -167,8 +161,7 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
     print(dep_element_dictionary)
 
     for ci in candidate_instances:
-        ci.build_features(dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary, symmetric)
-
+        ci.build_features(dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary)
 
     return candidate_instances, dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary
 
@@ -199,16 +192,10 @@ def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictio
                    continue
 
             entity_combos = set(itertools.product(entity_1,entity_2))
+            forward_test_instance = Instance(test_sentence, pair[0], pair[1], 0)
+            reverse_test_instance = Instance(test_sentence, pair[1], pair[0], 0)
 
             if symmetric is False:
-                forward_test_instance = Instance(test_sentence, pair[0], pair[1], 0)
-                reverse_test_instance = Instance(test_sentence, pair[0], pair[1], 0)
-                buffer_dep_path = reverse_test_instance.get_type_dependency_path()
-                reverse_test_instance.type_dependency_path = reverse_test_instance.get_reverse_type_dependency_path()
-                reverse_test_instance.reverse_type_dependency_path = buffer_dep_path
-                buffer_dep_elements = reverse_test_instance.get_dep_type_word_elements()
-                reverse_test_instance.dep_type_word_elements = reverse_test_instance.get_reverse_dep_type_word_elements()
-                reverse_test_instance.reverse_dep_type_word_elements = buffer_dep_elements
 
                 # check if check returned true because of reverse
                 if len(entity_combos.intersection(distant_interactions)) > 0 :
@@ -221,25 +208,30 @@ def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictio
                 test_instances.append(forward_test_instance)
                 test_instances.append(reverse_test_instance)
 
-
+            #if symmetric is True
             else:
-                if len(entity_combos.intersection(distant_interactions)) > 0:
-                    candidate_instance = Instance(test_sentence, pair[0], pair[1], 1)
-                    test_instances.append(candidate_instance)
-                elif len(entity_combos.intersection(reverse_distant_interactions)) > 0:
-                    candidate_instance = Instance(test_sentence, pair[0], pair[1], 1)
-                    test_instances.append(candidate_instance)
+                if len(entity_combos.intersection(distant_interactions)) > 0 or \
+                        len(entity_combos.intersection(reverse_distant_interactions)) > 0:
+                    forward_test_instance.set_label(1)
+                    reverse_test_instance.set_label(1)
+
+                forward_dep_type_path = ' '.join(forward_test_instance.get_type_dependency_path())
+                reverse_dep_type_path = ' '.join(reverse_test_instance.get_type_dependency_path())
+
+                if forward_dep_type_path in dep_dictionary:
+                    test_instances.append(forward_test_instance)
+                if reverse_dep_type_path in dep_dictionary:
+                    test_instances.append(reverse_test_instance)
                 else:
-                    candidate_instance = Instance(test_sentence, pair[0], pair[1], 0)
-                    test_instances.append(candidate_instance)
+                    test_instances.append(forward_test_instance)
 
 
     for instance in test_instances:
-        instance.build_features(dep_dictionary, dep_path_word_dictionary, dep_element_dictionary,  between_word_dictionary, symmetric)
+        instance.build_features(dep_dictionary, dep_path_word_dictionary, dep_element_dictionary,  between_word_dictionary)
 
     return test_instances
 
-def build_instances_predict(predict_sentences, dep_dictionary, dep_path_word_dictionary, between_word_dictionary, entity_1_list = None, entity_2_list = None, symmetric = False):
+def build_instances_predict(predict_sentences, dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary, entity_1_list = None, entity_2_list = None, symmetric = False):
     predict_instances = []
     for p_sentence in predict_sentences:
         entity_pairs = p_sentence.get_entity_pairs()
@@ -264,20 +256,26 @@ def build_instances_predict(predict_sentences, dep_dictionary, dep_path_word_dic
                 if len(set(entity_1).intersection(entity_2_list)) > 0:
                    continue
 
+            forward_predict_instance = Instance(p_sentence, pair[0], pair[1], -1)
+            reverse_predict_instance = Instance(p_sentence, pair[1], pair[0], -1)
             if symmetric is False:
-                forward_predict_instance = Instance(p_sentence, pair[0], pair[1], -1)
-                reverse_predict_instance = Instance(p_sentence, pair[0], pair[1], -1)
-                buffer_dep_path = reverse_predict_instance.get_type_dependency_path()
-                reverse_predict_instance.type_dependency_path = reverse_predict_instance.get_reverse_type_dependency_path()
-                reverse_predict_instance.reverse_type_dependency_path = buffer_dep_path
                 predict_instances.append(forward_predict_instance)
                 predict_instances.append(reverse_predict_instance)
+            #if symmetric is True
             else:
-                candidate_instance = Instance(p_sentence, pair[0], pair[1], -1)
-                predict_instances.append(candidate_instance)
+                forward_dep_type_path = ' '.join(forward_predict_instance.get_type_dependency_path())
+                reverse_dep_type_path = ' '.join(reverse_predict_instance.get_type_dependency_path())
+
+                if forward_dep_type_path in dep_dictionary:
+                    predict_instances.append(forward_predict_instance)
+                if reverse_dep_type_path in dep_dictionary:
+                    predict_instances.append(reverse_predict_instance)
+                else:
+                    predict_instances.append(forward_predict_instance)
+
 
     for instance in predict_instances:
-        instance.build_features(dep_dictionary, dep_path_word_dictionary,  between_word_dictionary, symmetric)
+        instance.build_features(dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary)
 
     return predict_instances
 
