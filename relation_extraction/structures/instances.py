@@ -122,7 +122,8 @@ class Instance(object):
             if i+1 == len(self.dependency_path):
                 end_word = ''
             dep_element = start_word + dep_type + end_word
-            word_path.append(start_word)
+            if start_word != '':
+                word_path.append(start_word)
             type_path.append(dep_type)
             path_elements.append(dep_element)
         self.type_dependency_path = type_path

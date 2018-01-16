@@ -127,9 +127,6 @@ def distant_train(model_out, sentence_file, distant_file, distant_e1_col, distan
 
 
 
-
-
-    '''
     training_instances, dep_dictionary, dep_word_dictionary, element_dictionary, between_word_dictionary = load_data.build_instances_training(
         training_sentences, distant_interactions, reverse_distant_interactions, entity_1_ids, entity_2_ids, symmetric)
 
@@ -159,10 +156,10 @@ def distant_train(model_out, sentence_file, distant_file, distant_e1_col, distan
     print(len(dep_word_dictionary))
     print('Number of between words')
     print(len(between_word_dictionary))
-    joblib.dump((model, dep_dictionary, dep_word_dictionary, between_word_dictionary), model_out)
+    joblib.dump((model, dep_dictionary, dep_word_dictionary, element_dictionary, between_word_dictionary), model_out)
 
     print("trained model")
-    '''
+
 
 
 def main():
