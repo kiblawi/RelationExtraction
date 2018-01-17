@@ -47,17 +47,7 @@ class Instance(object):
         self.build_dependency_path()
         self.build_feature_elements()
         self.build_between_entity_words()
-        #self.reverse_type_dependency_path = []
-        #self.build_type_dependency_path()
-        #self.build_reverse_type_path()
-        #self.build_dep_word_path()
-        #self.build_dep_type_word_elements()
-        #self.reverse_dep_type_word_elements = []
-        #self.build_reverse_dep_type_word_elements()
-        #self.dep_word_features = []
-        #self.dep_type_word_element_features = []
-        #self.between_features = []
-        #self.dep_features = []
+
 
 
     def set_label(self,label):
@@ -185,105 +175,6 @@ class Instance(object):
             dep_features[dep_dictionary[dep_path_string]] = 1
 
         self.features = dep_features + dep_word_features + dep_type_word_element_features + between_features
-
-
-
-
-
-
-
-
-
-
-
-
-    def build_type_dependency_path(self):
-        '''Returns shortest dependency path based on dependency types'''
-        type_path = []
-        for i in range(len(self.dependency_path)-1):
-            dep_start = self.dependency_path[i]
-            dep_end = self.dependency_path[i + 1]
-            dep_type = self.sentence.get_dependency_type(dep_start, dep_end)
-            type_path.append(dep_type)
-        self.type_dependency_path = type_path
-
-    def build_reverse_type_path(self):
-
-        type_path = []
-        reversed_dependency_path = list(reversed(self.dependency_path))
-        for i in range(len(reversed_dependency_path)-1):
-            dep_start = reversed_dependency_path[i]
-            dep_end = reversed_dependency_path[i + 1]
-            dep_type = self.sentence.get_dependency_type(dep_start, dep_end)
-            type_path.append(dep_type)
-        self.reverse_type_dependency_path = type_path
-
-
-
-    def get_reverse_type_dependency_path(self):
-        return self.reverse_type_dependency_path
-
-    def build_dep_word_path(self):
-        '''Builds dependency path of lexicalized words in path'''
-        word_path = []
-        for i in range(1,len(self.dependency_path)-1):
-            current_pos = self.dependency_path[i]
-            current_token = self.sentence.get_token(current_pos)
-            current_word = current_token.get_lemma()
-            if current_token.get_normalized_ner() is not None:
-                if 'GENE' in current_token.get_ner():
-                    current_word = 'GENE'
-                else:
-                    current_word = current_token.get_ner()
-            word_path.append(current_word)
-        self.dep_word_path = word_path
-
-    def build_dep_type_word_elements(self):
-        path_elements = []
-        for i in range(len(self.dependency_path)-1):
-            dep_start = self.dependency_path[i]
-            dep_end = self.dependency_path[i+1]
-            dep_type = self.sentence.get_dependency_type(dep_start,dep_end)
-            if i == 0:
-                start_word = ''
-            else:
-                start_position = self.dependency_path[i]
-                start_word = self.sentence.get_token(start_position).get_lemma()
-            if i+1 == len(self.dependency_path):
-                end_word = ''
-            else:
-                end_position = self.dependency_path[i+1]
-                end_word = self.sentence.get_token(end_position).get_lemma()
-            dep_element = start_word + dep_type + end_word
-            path_elements.append(dep_element)
-        self.dep_type_word_elements = path_elements
-
-
-
-    def build_reverse_dep_type_word_elements(self):
-        path_elements = []
-        reversed_dependency_path = list(reversed(self.dependency_path))
-        for i in range(len(reversed_dependency_path)-1):
-            dep_start = reversed_dependency_path[i]
-            dep_end = reversed_dependency_path[i+1]
-            dep_type = self.sentence.get_dependency_type(dep_start,dep_end)
-            if i == 0:
-                start_word = ''
-            else:
-                start_position = reversed_dependency_path[i]
-                start_word = self.sentence.get_token(start_position).get_lemma()
-            if i+1 == len(reversed_dependency_path):
-                end_word = ''
-            else:
-                end_position= reversed_dependency_path[i+1]
-                end_word = self.sentence.get_token(end_position).get_lemma()
-            dep_element = start_word + dep_type + end_word
-            path_elements.append(dep_element)
-        self.reverse_dep_type_word_elements = path_elements
-
-    def get_reverse_dep_type_word_elements(self):
-        return self.reverse_dep_type_word_elements
-
 
 
 

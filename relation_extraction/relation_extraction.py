@@ -10,6 +10,7 @@ import structures
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
+import collections
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.externals import joblib
@@ -74,6 +75,10 @@ def distant_train(model_out, sentence_file, distant_file, distant_e1_col, distan
     ten_fold_length = len(training_sentences)/10
     all_chunks = [training_sentences[i:i + ten_fold_length] for i in xrange(0, len(training_sentences), ten_fold_length)]
 
+
+    best_f1 = 0
+    best_test = []
+    best_predict = []
     for i in range(len(all_chunks)):
         #print('building')
         print('Fold #: ' + str(i))
@@ -124,6 +129,31 @@ def distant_train(model_out, sentence_file, distant_file, distant_e1_col, distan
         fold_f1 = metrics.f1_score(fold_test_y,predicted)
         #print('F1-Score: ' + str(fold_f1))
         print(fold_f1)
+
+        if fold_f1 > best_f1:
+            best_f1 = fold_f1
+            best_test = fold_test_y
+            best_predict = predicted
+
+
+    #Generate precision recall curves
+
+    positives = collections.Counter(best_test)[1]
+    accuracy = float(positives)/best_test.size
+    precision,recall,_ = metrics.precision_recall_curve(best_test,best_predict)
+    plt.step(recall,precision,color='b',alpha=0.2,where='post')
+    plt.fill_between(recall, precision, step='post', alpha=0.2,
+                     color='b')
+
+    plt.plot((0.0,1.0),(accuracy,accuracy))
+
+
+    plt.xlabel('Recall')
+    plt.ylabel('Precision')
+    plt.ylim([0.0, 1.05])
+    plt.xlim([0.0, 1.0])
+    plt.show()
+
 
 
 
