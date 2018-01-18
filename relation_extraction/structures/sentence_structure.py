@@ -20,7 +20,7 @@ class Token(object):
         return self.word
 
     def get_token_id(self):
-        '''Returns token Id'''
+        '''Returns token Id, number corresponds to token in sentence position'''
         return self.token_id
 
     def set_ner(self,new_ner):
@@ -81,7 +81,7 @@ class Sentence(object):
         return self.tokens[-1]
 
     def add_token(self,token):
-        '''Adds a token to sentence'''
+        '''Adds a token to sentence and entity type of token to entities dictionary'''
         previous_token = self.get_last_token()
         self.tokens.append(token)
         #Some genes belong in both virus and human which is why we split
@@ -104,22 +104,17 @@ class Sentence(object):
         return self.entities
 
     def generate_entity_pairs(self, entity_type_1, entity_type_2):
-        if entity_type_1 in self.entities and entity_type_2 in self.entities:
+        '''generates pairs between entities'''
+        if entity_type_1 in self.entities and entity_type_2 in self.entities: #check if both entities in sentence
             for pair in list(itertools.product(self.entities[entity_type_1], self.entities[entity_type_2])):
                 if pair[0] == pair[1]:
                     continue
+                #determines which entity token to look at for shortest distance
                 if max(pair[0]) > max(pair[1]):
                     self.pairs.append((pair[0][0], pair[1][-1]))
                 else:
                     self.pairs.append((pair[0][-1], pair[1][0]))
 
-        '''
-        for pair in list(itertools.product(self.entities[entity_type_2], self.entities[entity_type_1])):
-            if max(pair[0]) > max(pair[1]):
-                self.pairs.append((pair[0][0], pair[1][-1]))
-            else:
-                self.pairs.append((pair[0][-1], pair[1][0]))
-        '''
 
     def get_entity_pairs(self):
         return self.pairs

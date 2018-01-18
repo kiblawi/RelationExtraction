@@ -57,18 +57,24 @@ def predict_sentences(model_file, sentence_file, entity_1, entity_1_file, entity
 def distant_train(model_out, sentence_file, distant_file, distant_e1_col, distant_e2_col, distant_rel_col, entity_1,
                   entity_1_file, entity_1_col,
                   entity_2, entity_2_file, entity_2_col, symmetric):
+    '''Method for distantly training the data'''
+
+    #following is used to help differentiate genes that are both Human and Virus
+    #get normalized ids for entity_1 optional
     if entity_1_file.upper() != "NONE":
         entity_1_ids = load_data.load_id_list(entity_1_file, entity_1_col)
     else:
         entity_1_ids = None
+    #get normalized ids for entity_2
     if entity_2_file.upper() != "NONE":
         entity_2_ids = load_data.load_id_list(entity_2_file, entity_2_col)
     else:
         entity_2_ids = None
 
+    #load the distant knowledge base
     distant_interactions, reverse_distant_interactions = load_data.load_distant_kb(distant_file, distant_e1_col,
                                                                                    distant_e2_col, distant_rel_col)
-
+    #load the sentence data
     training_sentences = load_data.load_xml(sentence_file, entity_1, entity_2)
 
     #split training sentences for cross validation
@@ -191,24 +197,25 @@ def distant_train(model_out, sentence_file, distant_file, distant_e1_col, distan
     print("trained model")
 
 
-
 def main():
-    mode = sys.argv[1]
+    ''' Main method, mode determines whether program runs training, testing, or prediction'''
+    mode = sys.argv[1] #what option
     if mode.upper() == "DISTANT_TRAIN":
-        model_out = sys.argv[2]
-        sentence_file = sys.argv[3]
-        distant_file = sys.argv[4]
-        distant_e1_col = int(sys.argv[5])
-        distant_e2_col = int(sys.argv[6])
-        distant_rel_col = int(sys.argv[7])
-        entity_1 = sys.argv[8].upper()
-        entity_1_file = sys.argv[9]
-        entity_1_col = int(sys.argv[10])
-        entity_2 = sys.argv[11].upper()
-        entity_2_file = sys.argv[12]
-        entity_2_col = int(sys.argv[13])
-        symmetric = sys.argv[14].upper() in ['TRUE', 'Y', 'YES']
+        model_out = sys.argv[2] #location of where model should be saved after training
+        sentence_file = sys.argv[3] #xml file of sentences from Stanford Parser
+        distant_file = sys.argv[4] #distant supervision knowledge base to use
+        distant_e1_col = int(sys.argv[5]) #entity 1 column
+        distant_e2_col = int(sys.argv[6]) #entity 2 column
+        distant_rel_col = int(sys.argv[7]) #relation column
+        entity_1 = sys.argv[8].upper() #entity_1
+        entity_1_file = sys.argv[9] #entity_1 file (i.e. human genes)
+        entity_1_col = int(sys.argv[10]) #column in file of entity types
+        entity_2 = sys.argv[11].upper() #entity_2
+        entity_2_file = sys.argv[12] #entity_2 file location
+        entity_2_col = int(sys.argv[13]) #column for entity 2
+        symmetric = sys.argv[14].upper() in ['TRUE', 'Y', 'YES'] #is the relation symmetrical (i.e. binds)
 
+        #calls training method
         distant_train(model_out, sentence_file, distant_file, distant_e1_col, distant_e2_col, distant_rel_col, entity_1,
                       entity_1_file, entity_1_col,
                       entity_2, entity_2_file, entity_2_col, symmetric)

@@ -5,7 +5,7 @@ import itertools
 import math
 import random
 import numpy as np
-import tensorflow as tf
+
 
 from six.moves import xrange  # pylint: disable=redefined-builtin
 from lxml import etree
@@ -40,6 +40,8 @@ def build_dataset(words, occur_count = None):
 
 
 def build_instances_training(candidate_sentences, distant_interactions,reverse_distant_interactions, entity_1_list = None, entity_2_list = None, symmetric = False):
+    ''' Builds instances for training'''
+    #initialize vocabularies for different features
     path_word_vocabulary = []
     words_between_entities_vocabulary = []
     dep_type_vocabulary = []
@@ -280,6 +282,7 @@ def build_instances_predict(predict_sentences, dep_dictionary, dep_path_word_dic
     return predict_instances
 
 def load_xml(xml_file, entity_1, entity_2):
+    '''loads xml file for sentences, stanford corenlp parsed format only'''
     tree = etree.parse(xml_file)
     root = tree.getroot()
     candidate_sentences = []
@@ -287,27 +290,30 @@ def load_xml(xml_file, entity_1, entity_2):
 
 
     for sentence in sentences:
-        candidate_sentence = Sentence(sentence.get('id'))
-        tokens = list(sentence.iter('token'))
+        candidate_sentence = Sentence(sentence.get('id')) #get candidate sentence
+        tokens = list(sentence.iter('token')) #get tokens for sentence
 
         for token in tokens:
             normalized_ner = None
             ner = token.find('NER').text
             if token.find('NormalizedNER') is not None:
                 normalized_ner = token.find('NormalizedNER').text
-
+            #create token objects for sentences. Use to get word, lemma, POS, etc.
             candidate_token = Token(token.get('id'), token.find('word').text, token.find('lemma').text, token.find('CharacterOffsetBegin').text,
                                     token.find('CharacterOffsetEnd').text, token.find('POS').text, ner, normalized_ner)
             candidate_sentence.add_token(candidate_token)
-
+        #gets dependencies between tokens from stanford dependency parse
         dependencies = list(sentence.iter('dependencies'))
         basic_dependencies = dependencies[0]
+        #list of all dependencies in sentence
         deps = list(basic_dependencies.iter('dep'))
+        #generates list of all dependencies within a sentence
         for d in deps:
             candidate_dep = Dependency(d.get('type'), candidate_sentence.get_token(d.find('governor').get('idx')), candidate_sentence.get_token(d.find('dependent').get('idx')))
             candidate_sentence.add_dependency(candidate_dep)
-
+        #gets entity pairs of sentence
         candidate_sentence.generate_entity_pairs(entity_1, entity_2)
+        #generates dependency matrix
         candidate_sentence.build_dependency_matrix()
         candidate_sentences.append(candidate_sentence)
 
@@ -315,22 +321,27 @@ def load_xml(xml_file, entity_1, entity_2):
 
 
 def load_distant_kb(distant_kb_file, column_a, column_b,distant_rel_col):
+    '''Loads data from knowledge base into tuples'''
     distant_interactions = set()
     reverse_distant_interactions = set()
+    #reads in lines from kb file
     file = open(distant_kb_file,'rU')
     lines = file.readlines()
     file.close()
     for l in lines:
         split_line = l.split('\t')
+        #column_a is entity_1 column_b is entity 2
         tuple = (split_line[column_a],split_line[column_b])
         if split_line[distant_rel_col].endswith('by') is False:
             distant_interactions.add(tuple)
         else:
             reverse_distant_interactions.add(tuple)
 
+    #returns both forward and backward tuples for relations
     return distant_interactions,reverse_distant_interactions
 
 def load_id_list(id_list,column_a):
+    '''loads normalized ids for entities, only called if file given'''
     id_set = set()
     file = open(id_list,'rU')
     lines = file.readlines()
