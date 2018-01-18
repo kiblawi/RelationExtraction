@@ -83,8 +83,8 @@ def distant_train(model_out, sentence_file, distant_file, distant_e1_col, distan
 
 
     best_f1 = 0
-    best_test = []
-    best_predict = []
+    total_test = np.array([])
+    total_predicted_prob = np.array([])
     for i in range(len(all_chunks)):
         #print('building')
         print('Fold #: ' + str(i))
@@ -125,6 +125,7 @@ def distant_train(model_out, sentence_file, distant_file, distant_e1_col, distan
         fold_test_X = np.array(test_X)
         fold_test_y = np.array(test_y)
         predicted = model.predict(fold_test_X)
+        predicted_prob = model.predict_proba(fold_test_X)[:,1]
 
         fold_precision = metrics.precision_score(fold_test_y,predicted)
         #print('Precision: ' + str(fold_precision))
@@ -136,17 +137,19 @@ def distant_train(model_out, sentence_file, distant_file, distant_e1_col, distan
         #print('F1-Score: ' + str(fold_f1))
         print(fold_f1)
 
-        if fold_f1 > best_f1:
-            best_f1 = fold_f1
-            best_test = fold_test_y
-            best_predict = predicted
+        total_predicted_prob = np.append(total_predicted_prob,predicted_prob)
+        print(total_predicted_prob.size)
+        total_test = np.append(total_test,fold_test_y)
+        print(total_test.size)
+
+
 
 
     #Generate precision recall curves
 
-    positives = collections.Counter(best_test)[1]
-    accuracy = float(positives)/best_test.size
-    precision,recall,_ = metrics.precision_recall_curve(best_test,best_predict)
+    positives = collections.Counter(total_test)[1]
+    accuracy = float(positives)/total_test.size
+    precision,recall,_ = metrics.precision_recall_curve(total_test,total_predicted_prob,1)
     plt.step(recall,precision,color='b',alpha=0.2,where='post')
     plt.fill_between(recall, precision, step='post', alpha=0.2,
                      color='b')
