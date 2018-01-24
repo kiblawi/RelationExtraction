@@ -93,7 +93,10 @@ class Sentence(object):
                 if token.get_normalized_ner() != previous_token.get_normalized_ner():
                     self.entities[ner].append([token.get_token_id()])
                 else:
-                    self.entities[ner][-1].append(token.get_token_id())
+                    if len(self.entities[ner]) != 0:
+                        self.entities[ner][-1].append(token.get_token_id())
+                    else:
+                        self.entities[ner].append([token.get_token_id()])
             else:
                 self.entities[ner].append([token.get_token_id()])
 
@@ -114,7 +117,8 @@ class Sentence(object):
                     self.pairs.append((pair[0][0], pair[1][-1]))
                 else:
                     self.pairs.append((pair[0][-1], pair[1][0]))
-
+        else:
+            self.pairs = None
 
     def get_entity_pairs(self):
         return self.pairs
@@ -155,3 +159,8 @@ class Sentence(object):
 
     def get_dependency_matrix(self):
         return self.dependency_matrix
+
+    def clear_all(self):
+        for t in self.tokens:
+            del t
+        self.tokens = []

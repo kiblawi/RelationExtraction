@@ -2,6 +2,8 @@ import os
 import sys
 import collections
 import itertools
+import cPickle as pickle
+
 import math
 import random
 import numpy as np
@@ -118,25 +120,18 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
                 forward_dep_type_path = ' '.join(forward_train_instance.get_type_dependency_path())
                 reverse_dep_type_path = ' '.join(reverse_train_instance.get_type_dependency_path())
 
-                if forward_dep_type_path in dep_type_vocabulary_set:
+                if reverse_dep_type_path in dep_type_vocabulary_set:
+                    dep_type_vocabulary.append(reverse_dep_type_path)
+                    path_word_vocabulary += reverse_train_instance.get_dep_word_path()
+                    dep_type_word_elements_vocabulary += reverse_train_instance.get_dep_type_word_elements()
+                    words_between_entities_vocabulary += reverse_train_instance.get_between_words()
+                    candidate_instances.append(reverse_train_instance)
+                else:
                     dep_type_vocabulary.append(forward_dep_type_path)
                     path_word_vocabulary += forward_train_instance.get_dep_word_path()
                     dep_type_word_elements_vocabulary += forward_train_instance.get_dep_type_word_elements()
                     words_between_entities_vocabulary += forward_train_instance.get_between_words()
                     candidate_instances.append(forward_train_instance)
-                else:
-                    if reverse_dep_type_path in dep_type_vocabulary_set:
-                        dep_type_vocabulary.append(reverse_dep_type_path)
-                        path_word_vocabulary += reverse_train_instance.get_dep_word_path()
-                        dep_type_word_elements_vocabulary += reverse_train_instance.get_dep_type_word_elements()
-                        words_between_entities_vocabulary += reverse_train_instance.get_between_words()
-                        candidate_instances.append(reverse_train_instance)
-                    else:
-                        dep_type_vocabulary.append(forward_dep_type_path)
-                        path_word_vocabulary += forward_train_instance.get_dep_word_path()
-                        dep_type_word_elements_vocabulary += forward_train_instance.get_dep_type_word_elements()
-                        words_between_entities_vocabulary += forward_train_instance.get_between_words()
-                        candidate_instances.append(forward_train_instance)
 
 
     data, count, dep_path_word_dictionary, reversed_dictionary = build_dataset(path_word_vocabulary)
@@ -197,6 +192,7 @@ def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictio
             forward_test_instance = Instance(test_sentence, pair[0], pair[1], 0)
             reverse_test_instance = Instance(test_sentence, pair[1], pair[0], 0)
 
+
             if symmetric is False:
 
                 # check if check returned true because of reverse
@@ -220,8 +216,6 @@ def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictio
                 forward_dep_type_path = ' '.join(forward_test_instance.get_type_dependency_path())
                 reverse_dep_type_path = ' '.join(reverse_test_instance.get_type_dependency_path())
 
-                if forward_dep_type_path in dep_dictionary:
-                    test_instances.append(forward_test_instance)
                 if reverse_dep_type_path in dep_dictionary:
                     test_instances.append(reverse_test_instance)
                 else:
@@ -268,8 +262,6 @@ def build_instances_predict(predict_sentences, dep_dictionary, dep_path_word_dic
                 forward_dep_type_path = ' '.join(forward_predict_instance.get_type_dependency_path())
                 reverse_dep_type_path = ' '.join(reverse_predict_instance.get_type_dependency_path())
 
-                if forward_dep_type_path in dep_dictionary:
-                    predict_instances.append(forward_predict_instance)
                 if reverse_dep_type_path in dep_dictionary:
                     predict_instances.append(reverse_predict_instance)
                 else:
@@ -313,9 +305,10 @@ def load_xml(xml_file, entity_1, entity_2):
             candidate_sentence.add_dependency(candidate_dep)
         #gets entity pairs of sentence
         candidate_sentence.generate_entity_pairs(entity_1, entity_2)
+        if candidate_sentence.get_entity_pairs() is not None:
         #generates dependency matrix
-        candidate_sentence.build_dependency_matrix()
-        candidate_sentences.append(candidate_sentence)
+            candidate_sentence.build_dependency_matrix()
+            candidate_sentences.append(candidate_sentence)
 
     return candidate_sentences
 
@@ -352,3 +345,25 @@ def load_id_list(id_list,column_a):
         id_set.add(split_line[column_a])
 
     return id_set
+
+def load_abstracts_from_directory(directory_folder,entity_1,entity_2):
+    abstract_dict = {}
+    count = 0
+    for path, subdirs, files in os.walk(directory_folder):
+        for name in files:
+            if name.endswith('.xml'):
+                xmlpath = os.path.join(path, name)
+                abstract_sentences = load_xml(xmlpath,entity_1,entity_2)
+                if len(abstract_sentences) > 0:
+                    abstract_dict[count] = abstract_sentences
+                    print(count)
+                    count += 1
+            else:
+                continue
+    #save dictionary to pickle file so you don't have to read them in every time.
+    pickle.dump(abstract_dict, open(directory_folder+'.pkl', "wb"))
+    return abstract_dict
+
+def load_abstracts_from_pickle(pickle_file):
+    abstract_dict = pickle.load( open(pickle_file, "rb" ) )
+    return abstract_dict

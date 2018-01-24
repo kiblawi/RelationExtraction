@@ -9,7 +9,8 @@ import itertools
 import structures
 import numpy as np
 import matplotlib.pyplot as plt
-import pickle
+import cPickle as pickle
+
 import collections
 
 from sklearn.linear_model import LogisticRegression
@@ -54,7 +55,7 @@ def predict_sentences(model_file, sentence_file, entity_1, entity_1_file, entity
     return predict_instances, predicted_labels
 
 
-def distant_train(model_out, sentence_file, distant_file, distant_e1_col, distant_e2_col, distant_rel_col, entity_1,
+def distant_train(model_out, abstracts, distant_file, distant_e1_col, distant_e2_col, distant_rel_col, entity_1,
                   entity_1_file, entity_1_col,
                   entity_2, entity_2_file, entity_2_col, symmetric):
     '''Method for distantly training the data'''
@@ -75,32 +76,90 @@ def distant_train(model_out, sentence_file, distant_file, distant_e1_col, distan
     distant_interactions, reverse_distant_interactions = load_data.load_distant_kb(distant_file, distant_e1_col,
                                                                                    distant_e2_col, distant_rel_col)
     #load the sentence data
-    training_sentences = load_data.load_xml(sentence_file, entity_1, entity_2)
+    if abstracts.endswith('.pkl'):
+        training_sentences = load_data.load_abstracts_from_pickle(abstracts)
+    else:
+        training_sentences = load_data.load_abstracts_from_directory(abstracts, entity_1, entity_2)
+    print(len(training_sentences))
+    training_list = sorted(training_sentences.iterkeys())
+
 
     #split training sentences for cross validation
-    ten_fold_length = len(training_sentences)/10
-    all_chunks = [training_sentences[i:i + ten_fold_length] for i in xrange(0, len(training_sentences), ten_fold_length)]
+    ten_fold_length = len(training_list)/10
+    all_chunks = [training_list[i:i + ten_fold_length] for i in xrange(0, len(training_list), ten_fold_length)]
+
 
 
     best_f1 = 0
     total_test = np.array([])
     total_predicted_prob = np.array([])
-    for i in range(len(all_chunks)):
+    for i in range(1):
         #print('building')
         print('Fold #: ' + str(i))
         fold_chunks = all_chunks[:]
-        fold_test_sentences = fold_chunks.pop(i)
-        fold_training_sentences = list(itertools.chain.from_iterable(fold_chunks))
+        fold_test_abstracts = fold_chunks.pop(i)
+        fold_training_abstracts = list(itertools.chain.from_iterable(fold_chunks))
+        print(fold_test_abstracts)
+        print(fold_training_abstracts)
+        fold_training_sentences = []
+        for key in fold_training_abstracts:
+            fold_training_sentences = fold_training_sentences + training_sentences[key]
+        print(len(fold_training_sentences))
 
         fold_training_instances, fold_dep_dictionary, fold_dep_word_dictionary, fold_dep_element_dictionary, fold_between_word_dictionary = load_data.build_instances_training(
             fold_training_sentences, distant_interactions, reverse_distant_interactions, entity_1_ids, entity_2_ids, symmetric)
 
         #print('# of train instances: ' + str(len(fold_training_instances)))
         print(len(fold_training_instances))
-        fold_test_instances = load_data.build_instances_testing(fold_test_sentences, fold_dep_dictionary, fold_dep_word_dictionary,fold_dep_element_dictionary,
+
+        for key in fold_test_abstracts:
+            fold_test_sentences = training_sentences[key]
+            fold_test_instances = load_data.build_instances_testing(fold_test_sentences, fold_dep_dictionary, fold_dep_word_dictionary,fold_dep_element_dictionary,
                                                                 fold_between_word_dictionary,distant_interactions,reverse_distant_interactions, entity_1_ids,entity_2_ids,symmetric)
+
+            instance_to_group_dict = {}
+            group_to_instance_dict = {}
+            instance_dict = {}
+            group = 0
+            for test_instance in fold_test_instances:
+                start_norm = set(test_instance.get_sentence().get_token(test_instance.get_start()).get_normalized_ner().split('|'))
+                end_norm = set(test_instance.get_sentence().get_token(test_instance.get_end()).get_normalized_ner().split('|'))
+                instance_dict[test_instance] = [start_norm,end_norm]
+                instance_to_group_dict[test_instance]=group
+                group+=1
+
+            for test_instance in fold_test_instances:
+                max_val_start = 0
+                max_val_end = 0
+                for test_instance_2 in fold_test_instances:
+                    if test_instance == test_instance_2:
+                        continue
+                    if len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][0])) > 0:
+                        if len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][1])) > 0:
+                            if len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][0])) > max_val_start and len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][1])) > max_val_end:
+                                max_val_start = len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][0]))
+                                max_val_end =  len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][1]))
+                                instance_to_group_dict[test_instance] = instance_to_group_dict[test_instance_2]
+                    elif len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][0])) > 0:
+                        if len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][1])) > 0:
+                            if len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][0])) > max_val_start and len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][1])) > max_val_end:
+                                max_val_start = len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][0]))
+                                max_val_end = len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][1]))
+                                instance_to_group_dict[test_instance] = instance_to_group_dict[test_instance_2]
+
+            for test_instance in instance_to_group_dict:
+                if instance_to_group_dict[test_instance] not in group_to_instance_dict:
+                    group_to_instance_dict[instance_to_group_dict[test_instance]] = []
+                group_to_instance_dict[instance_to_group_dict[test_instance]].append(test_instance)
+
+            print(group_to_instance_dict)
+
+
+    '''
+                
         #print('# of test instances: ' + str(len(fold_test_instances)))
         #print('training')
+        
         print(len(fold_test_instances))
         X = []
         y = []
@@ -198,7 +257,7 @@ def distant_train(model_out, sentence_file, distant_file, distant_e1_col, distan
     joblib.dump((model, dep_dictionary, dep_word_dictionary, element_dictionary, between_word_dictionary), model_out)
 
     print("trained model")
-
+    '''
 
 def main():
     ''' Main method, mode determines whether program runs training, testing, or prediction'''
