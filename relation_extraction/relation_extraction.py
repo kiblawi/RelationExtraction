@@ -255,6 +255,10 @@ def distant_train(model_out, abstracts, distant_file, distant_e1_col, distant_e2
     print(len(dep_word_dictionary))
     print('Number of between words')
     print(len(between_word_dictionary))
+    print('Number of elements')
+    print(len(element_dictionary))
+    print('length of feature space')
+    print(len(dep_dictionary) + len(dep_word_dictionary) + len(element_dictionary) + len(between_word_dictionary))
     joblib.dump((model, dep_dictionary, dep_word_dictionary, element_dictionary, between_word_dictionary), model_out)
 
     print("trained model")
