@@ -112,6 +112,23 @@ def distant_train(model_out, abstracts, distant_file, distant_e1_col, distant_e2
         #print('# of train instances: ' + str(len(fold_training_instances)))
         print(len(fold_training_instances))
 
+        #train model
+        X = []
+        y = []
+        for t in fold_training_instances:
+            X.append(t.features)
+            y.append(t.label)
+
+        print(y.count(1))
+        print(len(fold_training_instances) - y.count(1))
+        fold_train_X = np.array(X)
+        fold_train_y = np.array(y)
+
+        model = LogisticRegression()
+        model.fit(fold_train_X, fold_train_y)
+
+        test_noisy_or_probs = []
+        test_y = []
         for key in fold_test_abstracts:
             fold_test_sentences = training_sentences[key]
             fold_test_instances = load_data.build_instances_testing(fold_test_sentences, fold_dep_dictionary, fold_dep_word_dictionary,fold_dep_element_dictionary,
@@ -132,17 +149,27 @@ def distant_train(model_out, abstracts, distant_file, distant_e1_col, distant_e2
                 max_val_start = 0
                 max_val_end = 0
                 for test_instance_2 in fold_test_instances:
-                    if test_instance == test_instance_2:
+
+                    recent_update = False
+
+                    if test_instance == test_instance_2 or test_instance.get_label() != test_instance_2.get_label():
                         continue
-                    if len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][0])) > 0:
-                        if len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][1])) > 0:
-                            if len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][0])) > max_val_start and len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][1])) > max_val_end:
-                                max_val_start = len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][0]))
-                                max_val_end =  len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][1]))
-                                instance_to_group_dict[test_instance] = instance_to_group_dict[test_instance_2]
-                    elif len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][0])) > 0:
-                        if len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][1])) > 0:
-                            if len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][0])) > max_val_start and len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][1])) > max_val_end:
+
+                    if len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][0])) > 0 and \
+                            len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][1])) > 0:
+                        if len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][0])) > max_val_start and \
+                                len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][1])) > max_val_end:
+                            max_val_start = len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][0]))
+                            max_val_end =  len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][1]))
+                            instance_to_group_dict[test_instance] = instance_to_group_dict[test_instance_2]
+                            recent_update = True
+
+                    #check reverse direction if relation is symmetric and the forward direction wasn't incorporated
+                    if symmetric is True and recent_update is False:
+                        if len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][0])) > 0 and \
+                                len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][1])) > 0:
+                            if len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][0])) > max_val_start and \
+                                    len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][1])) > max_val_end:
                                 max_val_start = len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][0]))
                                 max_val_end = len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][1]))
                                 instance_to_group_dict[test_instance] = instance_to_group_dict[test_instance_2]
@@ -152,7 +179,31 @@ def distant_train(model_out, abstracts, distant_file, distant_e1_col, distant_e2
                     group_to_instance_dict[instance_to_group_dict[test_instance]] = []
                 group_to_instance_dict[instance_to_group_dict[test_instance]].append(test_instance)
 
-            print(group_to_instance_dict)
+            for g in group_to_instance_dict:
+                group_X = []
+                group_y = []
+                for ti in group_to_instance_dict[g]:
+                    group_X.append(ti.features)
+                    group_y.append(ti.label)
+
+                group_test_X = np.array(group_X)
+                group_test_y = np.unique(group_y)
+
+                if group_test_y.size == 1:
+                    test_y.append(group_test_y[0])
+                else:
+                    continue
+                    print('error')
+
+                predicted_group_x = model.predict(group_test_X)
+                predicted_prob = model.predict_proba(group_test_X)[:, 1]
+
+                noisy_or = 1 - np.prod(predicted_prob)
+                test_noisy_or_probs.append(noisy_or)
+
+        print(len(test_noisy_or_probs))
+        print(len(test_y))
+
 
 
     '''
