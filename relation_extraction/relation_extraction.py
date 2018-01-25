@@ -211,84 +211,19 @@ def distant_train(model_out, abstracts, distant_file, distant_e1_col, distant_e2
                                                                                    distant_e2_col, distant_rel_col)
     #load the sentence data
     if abstracts.endswith('.pkl'):
-        training_sentences = load_data.load_abstracts_from_pickle(abstracts)
+        training_abstract_sentences = load_data.load_abstracts_from_pickle(abstracts)
     else:
         training_sentences = load_data.load_abstracts_from_directory(abstracts, entity_1, entity_2)
-    print(len(training_sentences))
+    print(len(training_abstract_sentences))
 
-    k_fold_cross_validation(10,training_sentences,distant_interactions,reverse_distant_interactions, entity_1_ids, entity_2_ids,symmetric)
-
-
-
-
-    '''
-                
-        #print('# of test instances: ' + str(len(fold_test_instances)))
-        #print('training')
-        
-        print(len(fold_test_instances))
-        X = []
-        y = []
-        for t in fold_training_instances:
-            X.append(t.features)
-            y.append(t.label)
-
-        print(y.count(1))
-        print(len(fold_training_instances)-y.count(1))
-        fold_train_X = np.array(X)
-        fold_train_y = np.array(y)
-
-        model=  LogisticRegression()
-        model.fit(fold_train_X,fold_train_y)
-
-        test_X = []
-        test_y = []
-        for test_i in fold_test_instances:
-            test_X.append(test_i.features)
-            test_y.append(test_i.label)
-
-        fold_test_X = np.array(test_X)
-        fold_test_y = np.array(test_y)
-        predicted = model.predict(fold_test_X)
-        predicted_prob = model.predict_proba(fold_test_X)[:,1]
-
-        fold_precision = metrics.precision_score(fold_test_y,predicted)
-        #print('Precision: ' + str(fold_precision))
-        print(fold_precision)
-        fold_recall = metrics.recall_score(fold_test_y,predicted)
-        #print('Recall: ' + str(fold_recall))
-        print(fold_recall)
-        fold_f1 = metrics.f1_score(fold_test_y,predicted)
-        #print('F1-Score: ' + str(fold_f1))
-        print(fold_f1)
-
-        total_predicted_prob = np.append(total_predicted_prob,predicted_prob)
-        print(total_predicted_prob.size)
-        total_test = np.append(total_test,fold_test_y)
-        print(total_test.size)
+    k_fold_cross_validation(10,training_abstract_sentences,distant_interactions,reverse_distant_interactions, entity_1_ids, entity_2_ids,symmetric)
 
 
 
 
-    #Generate precision recall curves
-
-    positives = collections.Counter(total_test)[1]
-    accuracy = float(positives)/total_test.size
-    precision,recall,_ = metrics.precision_recall_curve(total_test,total_predicted_prob,1)
-    plt.step(recall,precision,color='b',alpha=0.2,where='post')
-    plt.fill_between(recall, precision, step='post', alpha=0.2,
-                     color='b')
-
-    plt.plot((0.0,1.0),(accuracy,accuracy))
-
-
-    plt.xlabel('Recall')
-    plt.ylabel('Precision')
-    plt.ylim([0.0, 1.05])
-    plt.xlim([0.0, 1.0])
-    plt.show()
-
-
+    training_sentences = []
+    for key in training_sentences:
+        training_sentences = training_sentences + training_abstract_sentences[key]
 
 
     training_instances, dep_dictionary, dep_word_dictionary, element_dictionary, between_word_dictionary = load_data.build_instances_training(
@@ -323,7 +258,7 @@ def distant_train(model_out, abstracts, distant_file, distant_e1_col, distant_e2
     joblib.dump((model, dep_dictionary, dep_word_dictionary, element_dictionary, between_word_dictionary), model_out)
 
     print("trained model")
-    '''
+
 
 def main():
     ''' Main method, mode determines whether program runs training, testing, or prediction'''
