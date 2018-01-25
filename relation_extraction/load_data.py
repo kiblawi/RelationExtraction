@@ -120,7 +120,13 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
                 forward_dep_type_path = ' '.join(forward_train_instance.get_type_dependency_path())
                 reverse_dep_type_path = ' '.join(reverse_train_instance.get_type_dependency_path())
 
-                if reverse_dep_type_path in dep_type_vocabulary_set:
+                if forward_dep_type_path in dep_type_vocabulary_set:
+                    dep_type_vocabulary.append(forward_dep_type_path)
+                    path_word_vocabulary += forward_train_instance.get_dep_word_path()
+                    dep_type_word_elements_vocabulary += forward_train_instance.get_dep_type_word_elements()
+                    words_between_entities_vocabulary += forward_train_instance.get_between_words()
+                    candidate_instances.append(forward_train_instance)
+                elif reverse_dep_type_path in dep_type_vocabulary_set:
                     dep_type_vocabulary.append(reverse_dep_type_path)
                     path_word_vocabulary += reverse_train_instance.get_dep_word_path()
                     dep_type_word_elements_vocabulary += reverse_train_instance.get_dep_type_word_elements()
@@ -216,7 +222,9 @@ def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictio
                 forward_dep_type_path = ' '.join(forward_test_instance.get_type_dependency_path())
                 reverse_dep_type_path = ' '.join(reverse_test_instance.get_type_dependency_path())
 
-                if reverse_dep_type_path in dep_dictionary:
+                if forward_dep_type_path in dep_dictionary:
+                    test_instances.append(forward_test_instance)
+                elif reverse_dep_type_path in dep_dictionary:
                     test_instances.append(reverse_test_instance)
                 else:
                     test_instances.append(forward_test_instance)
@@ -262,7 +270,9 @@ def build_instances_predict(predict_sentences, dep_dictionary, dep_path_word_dic
                 forward_dep_type_path = ' '.join(forward_predict_instance.get_type_dependency_path())
                 reverse_dep_type_path = ' '.join(reverse_predict_instance.get_type_dependency_path())
 
-                if reverse_dep_type_path in dep_dictionary:
+                if forward_dep_type_path in dep_dictionary:
+                    predict_instances.append(forward_predict_instance)
+                elif reverse_dep_type_path in dep_dictionary:
                     predict_instances.append(reverse_predict_instance)
                 else:
                     predict_instances.append(forward_predict_instance)

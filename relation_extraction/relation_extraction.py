@@ -19,6 +19,140 @@ from sklearn.model_selection import train_test_split
 from sklearn.model_selection import cross_val_score
 from sklearn import metrics
 
+def k_fold_cross_validation(k,sentences_dict, distant_interactions, reverse_distant_interactions, entity_1_ids, entity_2_ids, symmetric):
+
+    training_list = sorted(sentences_dict.iterkeys())
+
+
+    #split training sentences for cross validation
+    ten_fold_length = len(training_list)/k
+    print(ten_fold_length)
+    all_chunks = [training_list[i:i + ten_fold_length] for i in xrange(0, len(training_list), ten_fold_length)]
+
+
+
+    total_test = np.array([])
+    total_predicted_prob = np.array([])
+    for i in range(len(all_chunks)):
+        #print('building')
+        print('Fold #: ' + str(i))
+        fold_chunks = all_chunks[:]
+        fold_test_abstracts = fold_chunks.pop(i)
+        fold_training_abstracts = list(itertools.chain.from_iterable(fold_chunks))
+        fold_training_sentences = []
+        for key in fold_training_abstracts:
+            fold_training_sentences = fold_training_sentences + sentences_dict[key]
+        print(len(fold_training_sentences))
+
+        fold_training_instances, fold_dep_dictionary, fold_dep_word_dictionary, fold_dep_element_dictionary, fold_between_word_dictionary = load_data.build_instances_training(
+            fold_training_sentences, distant_interactions, reverse_distant_interactions, entity_1_ids, entity_2_ids, symmetric)
+
+        #print('# of train instances: ' + str(len(fold_training_instances)))
+        print(len(fold_training_instances))
+
+        #train model
+        X = []
+        y = []
+        for t in fold_training_instances:
+            X.append(t.features)
+            y.append(t.label)
+
+
+        fold_train_X = np.array(X)
+        fold_train_y = np.array(y)
+
+        model = LogisticRegression()
+        model.fit(fold_train_X, fold_train_y)
+
+
+        for key in fold_test_abstracts:
+            fold_test_sentences = sentences_dict[key]
+            fold_test_instances = load_data.build_instances_testing(fold_test_sentences, fold_dep_dictionary, fold_dep_word_dictionary,fold_dep_element_dictionary,
+                                                                fold_between_word_dictionary,distant_interactions,reverse_distant_interactions, entity_1_ids,entity_2_ids,symmetric)
+
+            instance_to_group_dict = {}
+            group_to_instance_dict = {}
+            instance_dict = {}
+            group = 0
+            for test_instance in fold_test_instances:
+                start_norm = set(test_instance.get_sentence().get_token(test_instance.get_start()).get_normalized_ner().split('|'))
+                end_norm = set(test_instance.get_sentence().get_token(test_instance.get_end()).get_normalized_ner().split('|'))
+                instance_dict[test_instance] = [start_norm,end_norm]
+                instance_to_group_dict[test_instance]=group
+                group+=1
+
+            for test_instance in fold_test_instances:
+                max_val_start = 0
+                max_val_end = 0
+                for test_instance_2 in fold_test_instances:
+
+                    recent_update = False
+
+                    if test_instance == test_instance_2 or test_instance.get_label() != test_instance_2.get_label():
+                        continue
+
+                    if len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][0])) > 0 and \
+                            len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][1])) > 0:
+                        if len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][0])) > max_val_start and \
+                                len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][1])) > max_val_end:
+                            max_val_start = len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][0]))
+                            max_val_end =  len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][1]))
+                            instance_to_group_dict[test_instance] = instance_to_group_dict[test_instance_2]
+                            recent_update = True
+
+                    #check reverse direction if relation is symmetric and the forward direction wasn't incorporated
+                    if symmetric is True and recent_update is False:
+                        if len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][0])) > 0 and \
+                                len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][1])) > 0:
+                            if len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][0])) > max_val_start and \
+                                    len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][1])) > max_val_end:
+                                max_val_start = len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][0]))
+                                max_val_end = len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][1]))
+                                instance_to_group_dict[test_instance] = instance_to_group_dict[test_instance_2]
+
+            for test_instance in instance_to_group_dict:
+                if instance_to_group_dict[test_instance] not in group_to_instance_dict:
+                    group_to_instance_dict[instance_to_group_dict[test_instance]] = []
+                group_to_instance_dict[instance_to_group_dict[test_instance]].append(test_instance)
+
+            for g in group_to_instance_dict:
+                group_X = []
+                group_y = []
+                for ti in group_to_instance_dict[g]:
+                    group_X.append(ti.features)
+                    group_y.append(ti.label)
+
+                group_test_X = np.array(group_X)
+                group_test_y = np.unique(group_y)
+
+                if group_test_y.size == 1:
+                    total_test = np.append(total_test, group_test_y[0])
+                else:
+                    continue
+                    print('error')
+                #total_test = np.append(total_test,group_y)
+
+                predicted_prob = model.predict_proba(group_test_X)[:, 1]
+                negation_predicted_prob = 1 - predicted_prob
+                noisy_or = 1 - np.prod(negation_predicted_prob)
+                total_predicted_prob = np.append(total_predicted_prob, noisy_or)
+
+                # Generate precision recall curves
+
+    positives = collections.Counter(total_test)[1]
+    accuracy = float(positives) / total_test.size
+    precision, recall, _ = metrics.precision_recall_curve(total_test, total_predicted_prob, 1)
+    plt.step(recall, precision, color='b', alpha=0.2, where='post')
+    plt.fill_between(recall, precision, step='post', alpha=0.2,
+                         color='b')
+
+    plt.plot((0.0, 1.0), (accuracy, accuracy))
+
+    plt.xlabel('Recall')
+    plt.ylabel('Precision')
+    plt.ylim([0.0, 1.05])
+    plt.xlim([0.0, 1.0])
+    plt.show()
 
 def predict_sentences(model_file, sentence_file, entity_1, entity_1_file, entity_1_col,
                       entity_2, entity_2_file, entity_2_col, symmetric):
@@ -81,128 +215,9 @@ def distant_train(model_out, abstracts, distant_file, distant_e1_col, distant_e2
     else:
         training_sentences = load_data.load_abstracts_from_directory(abstracts, entity_1, entity_2)
     print(len(training_sentences))
-    training_list = sorted(training_sentences.iterkeys())
 
+    k_fold_cross_validation(10,training_sentences,distant_interactions,reverse_distant_interactions, entity_1_ids, entity_2_ids,symmetric)
 
-    #split training sentences for cross validation
-    ten_fold_length = len(training_list)/10
-    all_chunks = [training_list[i:i + ten_fold_length] for i in xrange(0, len(training_list), ten_fold_length)]
-
-
-
-    best_f1 = 0
-    total_test = np.array([])
-    total_predicted_prob = np.array([])
-    for i in range(1):
-        #print('building')
-        print('Fold #: ' + str(i))
-        fold_chunks = all_chunks[:]
-        fold_test_abstracts = fold_chunks.pop(i)
-        fold_training_abstracts = list(itertools.chain.from_iterable(fold_chunks))
-        print(fold_test_abstracts)
-        print(fold_training_abstracts)
-        fold_training_sentences = []
-        for key in fold_training_abstracts:
-            fold_training_sentences = fold_training_sentences + training_sentences[key]
-        print(len(fold_training_sentences))
-
-        fold_training_instances, fold_dep_dictionary, fold_dep_word_dictionary, fold_dep_element_dictionary, fold_between_word_dictionary = load_data.build_instances_training(
-            fold_training_sentences, distant_interactions, reverse_distant_interactions, entity_1_ids, entity_2_ids, symmetric)
-
-        #print('# of train instances: ' + str(len(fold_training_instances)))
-        print(len(fold_training_instances))
-
-        #train model
-        X = []
-        y = []
-        for t in fold_training_instances:
-            X.append(t.features)
-            y.append(t.label)
-
-        print(y.count(1))
-        print(len(fold_training_instances) - y.count(1))
-        fold_train_X = np.array(X)
-        fold_train_y = np.array(y)
-
-        model = LogisticRegression()
-        model.fit(fold_train_X, fold_train_y)
-
-        test_noisy_or_probs = []
-        test_y = []
-        for key in fold_test_abstracts:
-            fold_test_sentences = training_sentences[key]
-            fold_test_instances = load_data.build_instances_testing(fold_test_sentences, fold_dep_dictionary, fold_dep_word_dictionary,fold_dep_element_dictionary,
-                                                                fold_between_word_dictionary,distant_interactions,reverse_distant_interactions, entity_1_ids,entity_2_ids,symmetric)
-
-            instance_to_group_dict = {}
-            group_to_instance_dict = {}
-            instance_dict = {}
-            group = 0
-            for test_instance in fold_test_instances:
-                start_norm = set(test_instance.get_sentence().get_token(test_instance.get_start()).get_normalized_ner().split('|'))
-                end_norm = set(test_instance.get_sentence().get_token(test_instance.get_end()).get_normalized_ner().split('|'))
-                instance_dict[test_instance] = [start_norm,end_norm]
-                instance_to_group_dict[test_instance]=group
-                group+=1
-
-            for test_instance in fold_test_instances:
-                max_val_start = 0
-                max_val_end = 0
-                for test_instance_2 in fold_test_instances:
-
-                    recent_update = False
-
-                    if test_instance == test_instance_2 or test_instance.get_label() != test_instance_2.get_label():
-                        continue
-
-                    if len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][0])) > 0 and \
-                            len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][1])) > 0:
-                        if len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][0])) > max_val_start and \
-                                len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][1])) > max_val_end:
-                            max_val_start = len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][0]))
-                            max_val_end =  len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][1]))
-                            instance_to_group_dict[test_instance] = instance_to_group_dict[test_instance_2]
-                            recent_update = True
-
-                    #check reverse direction if relation is symmetric and the forward direction wasn't incorporated
-                    if symmetric is True and recent_update is False:
-                        if len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][0])) > 0 and \
-                                len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][1])) > 0:
-                            if len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][0])) > max_val_start and \
-                                    len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][1])) > max_val_end:
-                                max_val_start = len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][0]))
-                                max_val_end = len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][1]))
-                                instance_to_group_dict[test_instance] = instance_to_group_dict[test_instance_2]
-
-            for test_instance in instance_to_group_dict:
-                if instance_to_group_dict[test_instance] not in group_to_instance_dict:
-                    group_to_instance_dict[instance_to_group_dict[test_instance]] = []
-                group_to_instance_dict[instance_to_group_dict[test_instance]].append(test_instance)
-
-            for g in group_to_instance_dict:
-                group_X = []
-                group_y = []
-                for ti in group_to_instance_dict[g]:
-                    group_X.append(ti.features)
-                    group_y.append(ti.label)
-
-                group_test_X = np.array(group_X)
-                group_test_y = np.unique(group_y)
-
-                if group_test_y.size == 1:
-                    test_y.append(group_test_y[0])
-                else:
-                    continue
-                    print('error')
-
-                predicted_group_x = model.predict(group_test_X)
-                predicted_prob = model.predict_proba(group_test_X)[:, 1]
-
-                noisy_or = 1 - np.prod(predicted_prob)
-                test_noisy_or_probs.append(noisy_or)
-
-        print(len(test_noisy_or_probs))
-        print(len(test_y))
 
 
 
