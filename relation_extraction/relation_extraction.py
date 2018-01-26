@@ -19,6 +19,64 @@ from sklearn.model_selection import train_test_split
 from sklearn.model_selection import cross_val_score
 from sklearn import metrics
 
+
+def create_instance_groupings(group_instances, symmetric):
+
+    instance_to_group_dict = {}
+    group_to_instance_dict = {}
+    instance_dict = {}
+    group = 0
+
+    for ig in group_instances:
+        start_norm = set(ig.get_sentence().get_token(ig.get_start()).get_normalized_ner().split('|'))
+        end_norm = set(ig.get_sentence().get_token(ig.get_end()).get_normalized_ner().split('|'))
+        instance_dict[ig] = [start_norm, end_norm]
+        instance_to_group_dict[ig] = group
+        group += 1
+
+    for instance_1 in group_instances:
+        max_val_start = 0
+        max_val_end = 0
+        for instance_2 in group_instances:
+
+            recent_update = False
+
+            if instance_1 == instance_2 or instance_1.get_label() != instance_2.get_label():
+                continue
+
+            if len(instance_dict[instance_1][0].intersection(instance_dict[instance_2][0])) > 0 and \
+                            len(instance_dict[instance_1][1].intersection(instance_dict[instance_2][1])) > 0:
+                if len(instance_dict[instance_1][0].intersection(
+                        instance_dict[instance_2][0])) > max_val_start and \
+                                len(instance_dict[instance_1][1].intersection(
+                                    instance_dict[instance_2][1])) > max_val_end:
+                    max_val_start = len(instance_dict[instance_1][0].intersection(instance_dict[instance_2][0]))
+                    max_val_end = len(instance_dict[instance_1][1].intersection(instance_dict[instance_2][1]))
+                    instance_to_group_dict[instance_1] = instance_to_group_dict[instance_2]
+                    recent_update = True
+
+            # check reverse direction if relation is symmetric and the forward direction wasn't incorporated
+            if symmetric is True and recent_update is False:
+                if len(instance_dict[instance_1][1].intersection(instance_dict[instance_2][0])) > 0 and \
+                                len(instance_dict[instance_1][0].intersection(
+                                    instance_dict[instance_2][1])) > 0:
+                    if len(instance_dict[instance_1][1].intersection(
+                            instance_dict[instance_2][0])) > max_val_start and \
+                                    len(instance_dict[instance_1][0].intersection(
+                                        instance_dict[instance_2][1])) > max_val_end:
+                        max_val_start = len(
+                            instance_dict[instance_1][1].intersection(instance_dict[instance_2][0]))
+                        max_val_end = len(
+                            instance_dict[instance_1][0].intersection(instance_dict[instance_2][1]))
+                        instance_to_group_dict[instance_1] = instance_to_group_dict[instance_2]
+
+    for ig in instance_to_group_dict:
+        if instance_to_group_dict[ig] not in group_to_instance_dict:
+            group_to_instance_dict[instance_to_group_dict[ig]] = []
+        group_to_instance_dict[instance_to_group_dict[ig]].append(ig)
+
+    return instance_to_group_dict, group_to_instance_dict, instance_dict
+
 def k_fold_cross_validation(k,sentences_dict, distant_interactions, reverse_distant_interactions, entity_1_ids, entity_2_ids, symmetric):
 
     training_list = sorted(sentences_dict.iterkeys())
@@ -70,50 +128,8 @@ def k_fold_cross_validation(k,sentences_dict, distant_interactions, reverse_dist
             fold_test_instances = load_data.build_instances_testing(fold_test_sentences, fold_dep_dictionary, fold_dep_word_dictionary,fold_dep_element_dictionary,
                                                                 fold_between_word_dictionary,distant_interactions,reverse_distant_interactions, entity_1_ids,entity_2_ids,symmetric)
 
-            instance_to_group_dict = {}
-            group_to_instance_dict = {}
-            instance_dict = {}
-            group = 0
-            for test_instance in fold_test_instances:
-                start_norm = set(test_instance.get_sentence().get_token(test_instance.get_start()).get_normalized_ner().split('|'))
-                end_norm = set(test_instance.get_sentence().get_token(test_instance.get_end()).get_normalized_ner().split('|'))
-                instance_dict[test_instance] = [start_norm,end_norm]
-                instance_to_group_dict[test_instance]=group
-                group+=1
+            instance_to_group_dict, group_to_instance_dict, instance_dict = create_instance_groupings(fold_test_instances,symmetric)
 
-            for test_instance in fold_test_instances:
-                max_val_start = 0
-                max_val_end = 0
-                for test_instance_2 in fold_test_instances:
-
-                    recent_update = False
-
-                    if test_instance == test_instance_2 or test_instance.get_label() != test_instance_2.get_label():
-                        continue
-
-                    if len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][0])) > 0 and \
-                            len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][1])) > 0:
-                        if len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][0])) > max_val_start and \
-                                len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][1])) > max_val_end:
-                            max_val_start = len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][0]))
-                            max_val_end =  len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][1]))
-                            instance_to_group_dict[test_instance] = instance_to_group_dict[test_instance_2]
-                            recent_update = True
-
-                    #check reverse direction if relation is symmetric and the forward direction wasn't incorporated
-                    if symmetric is True and recent_update is False:
-                        if len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][0])) > 0 and \
-                                len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][1])) > 0:
-                            if len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][0])) > max_val_start and \
-                                    len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][1])) > max_val_end:
-                                max_val_start = len(instance_dict[test_instance][1].intersection(instance_dict[test_instance_2][0]))
-                                max_val_end = len(instance_dict[test_instance][0].intersection(instance_dict[test_instance_2][1]))
-                                instance_to_group_dict[test_instance] = instance_to_group_dict[test_instance_2]
-
-            for test_instance in instance_to_group_dict:
-                if instance_to_group_dict[test_instance] not in group_to_instance_dict:
-                    group_to_instance_dict[instance_to_group_dict[test_instance]] = []
-                group_to_instance_dict[instance_to_group_dict[test_instance]].append(test_instance)
 
             for g in group_to_instance_dict:
                 group_X = []
@@ -154,7 +170,7 @@ def k_fold_cross_validation(k,sentences_dict, distant_interactions, reverse_dist
     plt.xlim([0.0, 1.0])
     plt.show()
 
-def predict_sentences(model_file, sentence_file, entity_1, entity_1_file, entity_1_col,
+def predict_sentences(model_file, abstracts, entity_1, entity_1_file, entity_1_col,
                       entity_2, entity_2_file, entity_2_col, symmetric):
     if entity_1_file.upper() != "NONE":
         entity_1_ids = load_data.load_id_list(entity_1_file, entity_1_col)
@@ -165,7 +181,17 @@ def predict_sentences(model_file, sentence_file, entity_1, entity_1_file, entity
     else:
         entity_2_ids = None
 
-    predict_candidate_sentences = load_data.load_xml(sentence_file, entity_1, entity_2)
+
+    if abstracts.endswith('.pkl'):
+        predict_abstract_sentences = load_data.load_abstracts_from_pickle(abstracts)
+    else:
+        predict_abstract_sentences = load_data.load_abstracts_from_directory(abstracts, entity_1, entity_2)
+
+    predict_candidate_sentences = []
+    for key in predict_abstract_sentences:
+        predict_candidate_sentences = predict_candidate_sentences + predict_abstract_sentences[key]
+
+
 
     model, dep_dictionary, dep_word_dictionary, dep_element_dictionary, between_word_dictionary = joblib.load(model_file)
     predict_instances = load_data.build_instances_predict(predict_candidate_sentences, dep_dictionary,
@@ -222,7 +248,7 @@ def distant_train(model_out, abstracts, distant_file, distant_e1_col, distant_e2
 
 
     training_sentences = []
-    for key in training_sentences:
+    for key in training_abstract_sentences:
         training_sentences = training_sentences + training_abstract_sentences[key]
 
 
