@@ -80,22 +80,23 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
                     continue
 
             entity_combos = set(itertools.product(entity_1,entity_2))
+            #print(entity_combos)
 
             forward_train_instance = Instance(candidate_sentence, pair[0], pair[1], [0]*len(key_order))
-            print(forward_train_instance.dependency_elements)
+            #print(forward_train_instance.dependency_elements)
             reverse_train_instance = Instance(candidate_sentence, pair[1], pair[0], [0]*len(key_order))
-            print(reverse_train_instance.dependency_elements)
+            #print(reverse_train_instance.dependency_elements)
 
             for i in range(len(key_order)):
                 distant_key = key_order[i]
                 if 'SYMMETRIC' in distant_key:
-                    if len(entity_combos.intersection(distant_interactions))>0 or len(entity_combos.intersection(reverse_distant_interactions))>0:
+                    if len(entity_combos.intersection(distant_interactions[distant_key]))>0 or len(entity_combos.intersection(reverse_distant_interactions[distant_key]))>0:
                         forward_train_instance.set_label_i(1,i)
                         reverse_train_instance.set_label_i(1,i)
                 else:
-                    if len(entity_combos.intersection(distant_interactions)) > 0:
+                    if len(entity_combos.intersection(distant_interactions[distant_key])) > 0:
                         forward_train_instance.set_label_i(1, i)
-                    elif len(entity_combos.intersection(reverse_distant_interactions))>0:
+                    elif len(entity_combos.intersection(reverse_distant_interactions[distant_key]))>0:
                         reverse_train_instance.set_label_i(1, i)
 
             path_word_vocabulary += forward_train_instance.dependency_words
@@ -334,6 +335,7 @@ def load_abstracts_from_directory(directory_folder,entity_1,entity_2):
                 continue
     #save dictionary to pickle file so you don't have to read them in every time.
     #pickle.dump(abstract_dict, open(directory_folder+'.pkl', "wb"))
+    print(len(total_abstract_sentences))
     return total_abstract_sentences
 
 def load_abstracts_from_pickle(pickle_file):

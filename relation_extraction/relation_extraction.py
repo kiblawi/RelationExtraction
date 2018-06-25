@@ -95,7 +95,7 @@ def distant_train(model_out, abstract_folder, directional_distant_directory, sym
                                                                                             symmetric_distant_directory,
                                                                                             distant_entity_a_col,
                                                                                             distant_entity_b_col,distant_rel_col)
-
+    #print(distant_interactions)
     key_order = sorted(distant_interactions)
     #get pmids,sentences,
     training_sentences = load_data.load_abstracts_from_directory(abstract_folder,entity_a,entity_b)
@@ -124,15 +124,21 @@ def distant_train(model_out, abstract_folder, directional_distant_directory, sym
                                                    distant_interactions,
                                                    reverse_distant_interactions, key_order)
 
-    '''
+
     X = []
     y = []
     instance_sentences = set()
+    count = 0
     for t in training_instances:
-        instance_sentences.add(' '.join(t.sentence.sentence_words))
+        instance_sentences.add(t.sentence.get_sentence_string())
         X.append(t.features)
+        if 1 in t.label:
+            count +=1
         y.append(t.label)
 
+    print(count)
+    print(len(training_instances))
+    '''
     X_train = np.array(X)
     y_train = np.array(y)
 
