@@ -9,7 +9,7 @@ import random
 import numpy as np
 
 
-from six.moves import xrange  # pylint: disable=redefined-builtin
+
 from lxml import etree
 
 from structures.sentence_structure import Sentence, Token, Dependency
@@ -17,16 +17,13 @@ from structures.instances import Instance
 
 
 def build_dataset(words, occur_count = None):
-    """Process raw inputs into a dataset."""
+    """Process raw mentions of features into dictionary and count dictionary"""
     num_total_words = len(set(words))
     discard_count = 0
     if occur_count is not None:
-        for c in collections.Counter(words):
-            if collections.Counter(words)[c] < occur_count:
-                discard_count +=1
-
+        word_count_dict = collections.Counter(words)
+        discard_count = sum(1 for i in word_count_dict.values() if i < occur_count)
     num_words = num_total_words - discard_count
-
     count = []
     count.extend(collections.Counter(words).most_common(num_words))
     dictionary = dict()
@@ -40,8 +37,16 @@ def build_dataset(words, occur_count = None):
     reversed_dictionary = dict(zip(dictionary.values(), dictionary.keys()))
     return data, count, dictionary, reversed_dictionary
 
+def feature_pruning(feature_dict,feature_count_tuples,prune_val):
+    """Feature pruning if not done earlier - Don't really need this  function"""
+    feature_count_dict = dict(feature_count_tuples)
+    for key, value in feature_count_dict.iteritems():
+        if value < prune_val:
+            popped_element = feature_dict.pop(key)
 
-def build_instances_training(candidate_sentences, distant_interactions,reverse_distant_interactions, entity_1_list = None, entity_2_list = None, symmetric = False):
+    return feature_dict
+
+def build_instances_training(candidate_sentences, distant_interactions,reverse_distant_interactions,key_order, entity_1_list = None, entity_2_list = None):
     ''' Builds instances for training'''
     #initialize vocabularies for different features
     path_word_vocabulary = []
@@ -76,88 +81,43 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
 
             entity_combos = set(itertools.product(entity_1,entity_2))
 
-            forward_train_instance = Instance(candidate_sentence, pair[0], pair[1], 0)
-            reverse_train_instance = Instance(candidate_sentence, pair[1], pair[0], 0)
+            forward_train_instance = Instance(candidate_sentence, pair[0], pair[1], [0]*len(key_order))
+            print(forward_train_instance.dependency_elements)
+            reverse_train_instance = Instance(candidate_sentence, pair[1], pair[0], [0]*len(key_order))
+            print(reverse_train_instance.dependency_elements)
 
-            if symmetric is False:
-                # check if check returned true because of reverse
-                if len(entity_combos.intersection(distant_interactions)) > 0:
-                    path_word_vocabulary += forward_train_instance.get_dep_word_path()
-                    words_between_entities_vocabulary += forward_train_instance.get_between_words()
-                    dep_type_word_elements_vocabulary += forward_train_instance.get_dep_type_word_elements()
-                    dep_type_vocabulary.append(' '.join(forward_train_instance.get_type_dependency_path()))
-                    forward_train_instance.set_label(1)
-                    candidate_instances.append(forward_train_instance)
-                elif len(entity_combos.intersection(reverse_distant_interactions)) > 0:
-                    path_word_vocabulary += reverse_train_instance.get_dep_word_path()
-                    words_between_entities_vocabulary += reverse_train_instance.get_between_words()
-                    dep_type_word_elements_vocabulary += reverse_train_instance.get_dep_type_word_elements()
-                    dep_type_vocabulary.append(' '.join(reverse_train_instance.get_type_dependency_path()))
-                    reverse_train_instance.set_label(1)
-                    candidate_instances.append(reverse_train_instance)
+            for i in range(len(key_order)):
+                distant_key = key_order[i]
+                if 'SYMMETRIC' in distant_key:
+                    if len(entity_combos.intersection(distant_interactions))>0 or len(entity_combos.intersection(reverse_distant_interactions))>0:
+                        forward_train_instance.set_label_i(1,i)
+                        reverse_train_instance.set_label_i(1,i)
                 else:
-                    path_word_vocabulary += forward_train_instance.get_dep_word_path()
-                    path_word_vocabulary += reverse_train_instance.get_dep_word_path()
-                    words_between_entities_vocabulary += forward_train_instance.get_between_words()
-                    words_between_entities_vocabulary += reverse_train_instance.get_between_words()
-                    dep_type_vocabulary.append(' '.join(forward_train_instance.get_type_dependency_path()))
-                    dep_type_vocabulary.append(' '.join(reverse_train_instance.get_type_dependency_path()))
-                    dep_type_word_elements_vocabulary += forward_train_instance.get_dep_type_word_elements()
-                    dep_type_word_elements_vocabulary += reverse_train_instance.get_dep_type_word_elements()
-                    candidate_instances.append(forward_train_instance)
-                    candidate_instances.append(reverse_train_instance)
+                    if len(entity_combos.intersection(distant_interactions)) > 0:
+                        forward_train_instance.set_label_i(1, i)
+                    elif len(entity_combos.intersection(reverse_distant_interactions))>0:
+                        reverse_train_instance.set_label_i(1, i)
+
+            path_word_vocabulary += forward_train_instance.dependency_words
+            path_word_vocabulary += reverse_train_instance.dependency_words
+            words_between_entities_vocabulary += forward_train_instance.between_words
+            words_between_entities_vocabulary += reverse_train_instance.between_words
+            dep_type_word_elements_vocabulary += forward_train_instance.dependency_elements
+            dep_type_word_elements_vocabulary += reverse_train_instance.dependency_elements
+            dep_type_vocabulary.append(forward_train_instance.dependency_path)
+            dep_type_vocabulary.append(reverse_train_instance.dependency_path)
+            candidate_instances.append(forward_train_instance)
+            candidate_instances.append(reverse_train_instance)
 
 
-            #if symmetric is true
-            else:
-                if len(entity_combos.intersection(distant_interactions)) > 0 or \
-                                len(entity_combos.intersection(reverse_distant_interactions)) > 0:
-                    forward_train_instance.set_label(1)
-                    reverse_train_instance.set_label(1)
-                else:
-                    pass
-                dep_type_vocabulary_set = set(dep_type_vocabulary)
-                forward_dep_type_path = ' '.join(forward_train_instance.get_type_dependency_path())
-                reverse_dep_type_path = ' '.join(reverse_train_instance.get_type_dependency_path())
-
-                if forward_dep_type_path in dep_type_vocabulary_set:
-                    dep_type_vocabulary.append(forward_dep_type_path)
-                    path_word_vocabulary += forward_train_instance.get_dep_word_path()
-                    dep_type_word_elements_vocabulary += forward_train_instance.get_dep_type_word_elements()
-                    words_between_entities_vocabulary += forward_train_instance.get_between_words()
-                    candidate_instances.append(forward_train_instance)
-                elif reverse_dep_type_path in dep_type_vocabulary_set:
-                    dep_type_vocabulary.append(reverse_dep_type_path)
-                    path_word_vocabulary += reverse_train_instance.get_dep_word_path()
-                    dep_type_word_elements_vocabulary += reverse_train_instance.get_dep_type_word_elements()
-                    words_between_entities_vocabulary += reverse_train_instance.get_between_words()
-                    candidate_instances.append(reverse_train_instance)
-                else:
-                    dep_type_vocabulary.append(forward_dep_type_path)
-                    path_word_vocabulary += forward_train_instance.get_dep_word_path()
-                    dep_type_word_elements_vocabulary += forward_train_instance.get_dep_type_word_elements()
-                    words_between_entities_vocabulary += forward_train_instance.get_between_words()
-                    candidate_instances.append(forward_train_instance)
+    data, count, dep_path_word_dictionary, reversed_dictionary = build_dataset(path_word_vocabulary,5)
+    dep_data, dep_count, dep_dictionary, dep_reversed_dictionary = build_dataset(dep_type_vocabulary,5)
+    dep_element_data, dep_element_count, dep_element_dictionary, dep_element_reversed_dictionary = build_dataset(
+        dep_type_word_elements_vocabulary,5)
+    between_data, between_count, between_word_dictionary, between_reversed_dictionary = build_dataset(
+        words_between_entities_vocabulary,5)
 
 
-    data, count, dep_path_word_dictionary, reversed_dictionary = build_dataset(path_word_vocabulary)
-    dep_data, dep_count, dep_dictionary, dep_reversed_dictionary = build_dataset(dep_type_vocabulary)
-    dep_element_data, dep_element_count, dep_element_dictionary, dep_element_reversed_dictionary = build_dataset(dep_type_word_elements_vocabulary)
-    between_data, between_count, between_word_dictionary, between_reversed_dictionary = build_dataset(words_between_entities_vocabulary)
-
-    '''
-    dep_path_word_dictionary = {}
-    array_place = 0
-    for c in count:
-        dep_path_word_dictionary[c[0]] = array_place
-        array_place += 1
-
-    between_word_dictionary = {}
-    array_place = 0
-    for c in between_count:
-        between_word_dictionary[c[0]] = array_place
-        array_place += 1
-    '''
     print(dep_dictionary)
     print(dep_path_word_dictionary)
     print(between_word_dictionary)
@@ -292,7 +252,7 @@ def load_xml(xml_file, entity_1, entity_2):
 
 
     for sentence in sentences:
-        candidate_sentence = Sentence(sentence.get('id')) #get candidate sentence
+        candidate_sentence = Sentence(sentence.find('PMID').text,sentence.get('id')) #get candidate sentence find for pmid because its a tag, get for 'id' because its an attribute
         tokens = list(sentence.iter('token')) #get tokens for sentence
 
         for token in tokens:
@@ -356,24 +316,48 @@ def load_id_list(id_list,column_a):
 
     return id_set
 
+
+
 def load_abstracts_from_directory(directory_folder,entity_1,entity_2):
-    abstract_dict = {}
-    count = 0
+    print(directory_folder)
+    total_abstract_sentences = []
     for path, subdirs, files in os.walk(directory_folder):
         for name in files:
-            if name.endswith('.xml'):
+            if name.endswith('.txt'):
+                print(name)
                 xmlpath = os.path.join(path, name)
                 abstract_sentences = load_xml(xmlpath,entity_1,entity_2)
                 if len(abstract_sentences) > 0:
-                    abstract_dict[count] = abstract_sentences
-                    print(count)
-                    count += 1
+                    total_abstract_sentences += abstract_sentences
+
             else:
                 continue
     #save dictionary to pickle file so you don't have to read them in every time.
-    pickle.dump(abstract_dict, open(directory_folder+'.pkl', "wb"))
-    return abstract_dict
+    #pickle.dump(abstract_dict, open(directory_folder+'.pkl', "wb"))
+    return total_abstract_sentences
 
 def load_abstracts_from_pickle(pickle_file):
     abstract_dict = pickle.load( open(pickle_file, "rb" ) )
     return abstract_dict
+
+
+def load_distant_directories(directional_distant_directory,symmetric_distant_directory,distant_entity_a_col,distant_entity_b_col,distant_rel_col):
+    forward_dictionary = {}
+    reverse_dictionary = {}
+    for filename in os.listdir(directional_distant_directory):
+        if filename.endswith('.txt') is False:
+            continue
+        distant_interactions,reverse_distant_interactions = load_distant_kb(directional_distant_directory+'/'+filename,
+                                                                            distant_entity_a_col,distant_entity_b_col,distant_rel_col)
+        forward_dictionary[filename] = distant_interactions
+        reverse_dictionary[filename] = reverse_distant_interactions
+
+    for filename in os.listdir(symmetric_distant_directory):
+        if filename.endswith('.txt') is False:
+            continue
+        distant_interactions,reverse_distant_interactions = load_distant_kb(symmetric_distant_directory+'/'+filename,
+                                                                            distant_entity_a_col,distant_entity_b_col,distant_rel_col)
+        forward_dictionary['SYMMETRIC'+filename] = distant_interactions
+        reverse_dictionary['SYMMETRIC'+filename] = reverse_distant_interactions
+
+    return forward_dictionary, reverse_dictionary

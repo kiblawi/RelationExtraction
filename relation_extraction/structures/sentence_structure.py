@@ -63,8 +63,9 @@ class Dependency(object):
 
 
 class Sentence(object):
-    def __init__(self,sentence_id):
+    def __init__(self,pmid,sentence_id):
         '''Constructor for Sentence Object'''
+        self.pmid = pmid
         self.sentence_id=sentence_id
         self.tokens = []
         self.entities = {}
@@ -106,17 +107,26 @@ class Sentence(object):
     def get_entities(self):
         return self.entities
 
-    def generate_entity_pairs(self, entity_type_1, entity_type_2):
+    def generate_entity_pairs(self, entity_type_1_name, entity_type_2_name):
         '''generates pairs between entities'''
-        if entity_type_1 in self.entities and entity_type_2 in self.entities: #check if both entities in sentence
-            for pair in list(itertools.product(self.entities[entity_type_1], self.entities[entity_type_2])):
-                if pair[0] == pair[1]:
-                    continue
+        entity_type_1 = set()
+        entity_type_2 = set()
+        entity_set = set(self.entities)
+        for e in self.entities:
+            if entity_type_1_name in e:
+                entity_type_1.add(e)
+            if entity_type_2_name in e:
+                entity_type_2.add(e)
+        if len(entity_type_1.intersection(entity_set))>0 and len(entity_type_2.intersection(entity_set))>0:#check if both entities in sentence
+            for z in list(itertools.product(entity_type_1,entity_type_2)):
+                for pair in list(itertools.product(self.entities[z[0]], self.entities[z[1]])):
+                    if pair[0] == pair[1]:
+                        continue
                 #determines which entity token to look at for shortest distance
-                if max(pair[0]) > max(pair[1]):
-                    self.pairs.append((pair[0][0], pair[1][-1]))
-                else:
-                    self.pairs.append((pair[0][-1], pair[1][0]))
+                    if max(pair[0]) > max(pair[1]):
+                        self.pairs.append((pair[0][0], pair[1][-1]))
+                    else:
+                        self.pairs.append((pair[0][-1], pair[1][0]))
         else:
             self.pairs = None
 

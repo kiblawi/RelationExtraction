@@ -37,22 +37,35 @@ class Instance(object):
         self.sentence = sentence
         self.start = start
         self.end = end
+        self.entity_pair = (self.start, self.end)
+
         self.label = label
-        self.dependency_path = []
-        self.dep_word_path = []
-        self.dep_type_word_elements = []
-        self.type_dependency_path = []
-        self.between_entity_words = []
-        self.features = []
-        self.build_dependency_path()
+
+        #get between word elements
+        self.between_words = []
+        self.build_words_between_features()
+
+        #Get words in dependency path with index values
+        self.dependency_words_indexes = []
+        self.build_dependency_path_indexes()
+
+        self.dependency_path = '' #string of dependency path types
+        self.dependency_words = [] #list of words in dependency path
+        self.dependency_elements = [] #elements of dependency path (word1|deptype|word2)
+
+        #build the three previous feature types
         self.build_feature_elements()
-        self.build_between_entity_words()
+
+
 
 
 
     def set_label(self,label):
         '''Sets the label of the candidate sentence (positive/negative)'''
         self.label = label
+
+    def set_label_i(self,label,index):
+        self.label[index] = label
 
     def get_label(self):
         return self.label
@@ -66,7 +79,7 @@ class Instance(object):
     def get_sentence(self):
         return self.sentence
 
-    def build_dependency_path(self):
+    def build_dependency_path_indexes(self):
         '''Builds and returns shortest dependency path by calling djikstras algorithm'''
         source_token_no = self.start
         target_token_no = self.end
@@ -77,21 +90,21 @@ class Instance(object):
             while prev != source_token_no:
                 prev = previous[prev]
                 path.insert(0,prev)
-            self.dependency_path = path
+            self.dependency_words_indexes = path
 
 
     def get_dependency_path(self):
         '''Returns dependency path'''
-        return self.dependency_path
+        return self.dependency_words_indexes
 
 
     def build_feature_elements(self):
         path_elements = []
         type_path = []
         word_path = []
-        for i in range(len(self.dependency_path)-1):
-            dep_start = self.dependency_path[i]
-            dep_end = self.dependency_path[i + 1]
+        for i in range(len(self.dependency_words_indexes)-1):
+            dep_start = self.dependency_words_indexes[i]
+            dep_end = self.dependency_words_indexes[i + 1]
             dep_type = self.sentence.get_dependency_type(dep_start, dep_end)
             start_token = self.sentence.get_token(dep_start)
             end_token = self.sentence.get_token(dep_end)
@@ -100,25 +113,29 @@ class Instance(object):
             if start_token.get_normalized_ner() is not None:
                 if 'GENE' in start_token.get_ner():
                     start_word = 'GENE'
+                elif 'ONTOLOGY' in start_token.get_ner():
+                    start_word = 'ONTOLOGY'
                 else:
                     start_word = start_token.get_ner()
             if end_token.get_normalized_ner() is not None:
                 if 'GENE' in end_token.get_ner():
                     end_word = 'GENE'
+                elif 'ONTOLOGY' in end_token.get_ner():
+                    end_word = 'ONTOLOGY'
                 else:
                     end_word = end_token.get_ner()
             if i == 0:
-                start_word = ''
-            if i+1 == len(self.dependency_path):
-                end_word = ''
+                start_word = 'START_ENTITY'
+            if i+1 == len(self.dependency_words_indexes)-1:
+                end_word = 'END_ENTITY'
             dep_element = start_word + dep_type + end_word
             if start_word != '':
                 word_path.append(start_word)
             type_path.append(dep_type)
             path_elements.append(dep_element)
-        self.type_dependency_path = type_path
-        self.dep_word_path = word_path
-        self.dep_type_word_elements = path_elements
+        self.dependency_path = ' '.join(type_path)
+        self.dependency_words = word_path
+        self.dependency_elements = path_elements
 
     def get_dep_word_path(self):
         '''Returns word path'''
@@ -131,7 +148,7 @@ class Instance(object):
     def get_dep_type_word_elements(self):
         return self.dep_type_word_elements
 
-    def build_between_entity_words(self):
+    def build_words_between_features(self):
         between_words = []
         for i in range(min(self.start,self.end) + 1,max(self.start,self.end)):
             current_token = self.sentence.get_token(i)
@@ -139,13 +156,16 @@ class Instance(object):
             if current_token.get_normalized_ner() is not None:
                 if 'GENE' in current_token.get_ner():
                     current_word = 'GENE'
+                elif 'ONTOLOGY' in current_token.get_ner():
+                    current_word = 'ONTOLOGY'
                 else:
                     current_word = current_token.get_ner()
             between_words.append(current_word)
-        self.between_entity_words = between_words
+        self.between_words = between_words
 
     def get_between_words(self):
-        return self.between_entity_words
+        return self.between_words
+
 
 
 
@@ -156,21 +176,21 @@ class Instance(object):
         between_features = [0] * len(between_word_dictionary)
 
         dep_path_feature_words = set(dep_word_dictionary.keys())
-        intersection_set = dep_path_feature_words.intersection(set(self.dep_word_path))
+        intersection_set = dep_path_feature_words.intersection(set(self.dependency_words))
         for i in intersection_set:
             dep_word_features[dep_word_dictionary[i]] = 1
 
         dep_type_word_element_feature_words = set(dep_type_word_element_dictionary.keys())
-        intersection_set = dep_type_word_element_feature_words.intersection(set(self.dep_type_word_elements))
+        intersection_set = dep_type_word_element_feature_words.intersection(set(self.dependency_elements))
         for i in intersection_set:
             dep_type_word_element_features[dep_type_word_element_dictionary[i]] = 1
 
         between_feature_words = set(between_word_dictionary.keys())
-        between_intersection_set = between_feature_words.intersection(set(self.between_entity_words))
+        between_intersection_set = between_feature_words.intersection(set(self.between_words))
         for i in between_intersection_set:
             between_features[between_word_dictionary[i]] = 1
 
-        dep_path_string = ' '.join(self.type_dependency_path)
+        dep_path_string = self.dependency_path
         if dep_path_string in dep_dictionary:
             dep_features[dep_dictionary[dep_path_string]] = 1
 
