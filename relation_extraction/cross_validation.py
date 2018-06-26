@@ -30,8 +30,8 @@ def write_cv_output(filename, predicts, instances,key_order):
 
     return
 
-def k_fold_cross_validation(k, pmids, forward_sentences, reverse_sentences, distant_interactions, reverse_distant_interactions,
-                            entity_a_text, entity_b_text,hidden_array,key_order):
+def k_fold_cross_validation(k, pmids, candidate_sentences, distant_interactions, reverse_distant_interactions,
+                            hidden_array,key_order):
 
     pmids = list(pmids)
     #split training sentences for cross validation
@@ -46,36 +46,23 @@ def k_fold_cross_validation(k, pmids, forward_sentences, reverse_sentences, dist
         fold_test_abstracts = set(fold_chunks.pop(i))
         fold_training_abstracts = set(list(itertools.chain.from_iterable(fold_chunks)))
 
-        fold_training_forward_sentences = {}
-        fold_training_reverse_sentences = {}
-        fold_test_forward_sentences = {}
-        fold_test_reverse_sentences = {}
+        fold_training_sentences = []
+        fold_test_sentences = []
 
-        for key in forward_sentences:
-            if key.split('|')[0] in fold_training_abstracts:
-                fold_training_forward_sentences[key] = forward_sentences[key]
-            elif key.split('|')[0] in fold_test_abstracts:
-                fold_test_forward_sentences[key] = forward_sentences[key]
-
-        for key in reverse_sentences:
-            if key.split('|')[0] in fold_training_abstracts:
-                fold_training_reverse_sentences[key] = reverse_sentences[key]
-            elif key.split('|')[0] in fold_test_abstracts:
-                fold_test_reverse_sentences[key] = reverse_sentences[key]
-
+        for candidate_sentence in candidate_sentences:
+            if candidate_sentence.pmid in fold_test_abstracts:
+                fold_test_sentences.append(candidate_sentence)
+            else:
+                fold_training_sentences.append(candidate_sentence)
 
         fold_training_instances, \
         fold_dep_dictionary, \
         fold_dep_word_dictionary, \
         fold_dep_element_dictionary, \
-        fold_between_word_dictionary = load_data.build_instances_training(fold_training_forward_sentences,
-                                                                          fold_training_reverse_sentences,
+        fold_between_word_dictionary = load_data.build_instances_training(fold_training_sentences,
                                                                           distant_interactions,
                                                                           reverse_distant_interactions,
-                                                                          entity_a_text,
-                                                                          entity_b_text,key_order)
-
-
+                                                                          key_order)
 
         #train model
         X = []
@@ -93,13 +80,12 @@ def k_fold_cross_validation(k, pmids, forward_sentences, reverse_sentences, dist
         if os.path.exists(model_dir):
             shutil.rmtree(model_dir)
 
-        fold_test_instances = load_data.build_instances_testing(fold_test_forward_sentences,
-                                                                fold_test_reverse_sentences,
+        fold_test_instances = load_data.build_instances_testing(fold_test_sentences,
                                                                 fold_dep_dictionary, fold_dep_word_dictionary,
                                                                 fold_dep_element_dictionary,
                                                                 fold_between_word_dictionary,
                                                                 distant_interactions, reverse_distant_interactions,
-                                                                entity_a_text, entity_b_text,key_order)
+                                                                key_order)
 
 
         # group instances by pmid and build feature array
@@ -139,52 +125,40 @@ def k_fold_cross_validation(k, pmids, forward_sentences, reverse_sentences, dist
 
     return total_predicted_prob, total_instances
 
-def parallel_k_fold_cross_validation(batch_id, k, pmids, forward_sentences, reverse_sentences, distant_interactions, reverse_distant_interactions,
-                            entity_a_text, entity_b_text,hidden_array,key_order):
+def parallel_k_fold_cross_validation(batch_id, k, pmids, candidate_sentences, distant_interactions, reverse_distant_interactions, hidden_array, key_order):
 
     pmids = list(pmids)
     #split training sentences for cross validation
     ten_fold_length = len(pmids)/k
     all_chunks = [pmids[i:i + ten_fold_length] for i in xrange(0, len(pmids), ten_fold_length)]
 
-    total_test = [] #test_labels for instances
-    total_predicted_prob = [] #test_probability returns for instances
-    total_instances = []
-
+    #total_test = [] #test_labels for instances
+    #total_predicted_prob = [] #test_probability returns for instances
+    #total_instances = []
 
 
     fold_chunks = all_chunks[:]
     fold_test_abstracts = set(fold_chunks.pop(batch_id))
     fold_training_abstracts = set(list(itertools.chain.from_iterable(fold_chunks)))
 
-    fold_training_forward_sentences = {}
-    fold_training_reverse_sentences = {}
-    fold_test_forward_sentences = {}
-    fold_test_reverse_sentences = {}
+    fold_training_sentences = []
+    fold_test_sentences = []
 
-    for key in forward_sentences:
-        if key.split('|')[0] in fold_training_abstracts:
-            fold_training_forward_sentences[key] = forward_sentences[key]
-        elif key.split('|')[0] in fold_test_abstracts:
-            fold_test_forward_sentences[key] = forward_sentences[key]
-
-    for key in reverse_sentences:
-        if key.split('|')[0] in fold_training_abstracts:
-            fold_training_reverse_sentences[key] = reverse_sentences[key]
-        elif key.split('|')[0] in fold_test_abstracts:
-            fold_test_reverse_sentences[key] = reverse_sentences[key]
+    for candidate_sentence in candidate_sentences:
+        if candidate_sentence.pmid in fold_test_abstracts:
+            fold_test_sentences.append(candidate_sentence)
+        else:
+            fold_training_sentences.append(candidate_sentence)
 
 
     fold_training_instances, \
     fold_dep_dictionary, \
     fold_dep_word_dictionary, \
     fold_dep_element_dictionary, \
-    fold_between_word_dictionary = load_data.build_instances_training(fold_training_forward_sentences,
-                                                                      fold_training_reverse_sentences,
+    fold_between_word_dictionary = load_data.build_instances_training(fold_training_sentences,
                                                                       distant_interactions,
                                                                       reverse_distant_interactions,
-                                                                      entity_a_text,
-                                                                      entity_b_text,key_order)
+                                                                      key_order)
 
 
     #train model
@@ -203,13 +177,12 @@ def parallel_k_fold_cross_validation(batch_id, k, pmids, forward_sentences, reve
     if os.path.exists(model_dir):
         shutil.rmtree(model_dir)
 
-    fold_test_instances = load_data.build_instances_testing(fold_test_forward_sentences,
-                                                            fold_test_reverse_sentences,
+    fold_test_instances = load_data.build_instances_testing(fold_test_sentences,
                                                             fold_dep_dictionary, fold_dep_word_dictionary,
                                                             fold_dep_element_dictionary,
                                                             fold_between_word_dictionary,
                                                             distant_interactions, reverse_distant_interactions,
-                                                            entity_a_text, entity_b_text,key_order)
+                                                            key_order)
 
     # group instances by pmid and build feature array
     fold_test_features = []

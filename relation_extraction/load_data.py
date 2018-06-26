@@ -130,7 +130,7 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
     return candidate_instances, dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary
 
 def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary,
-                            distant_interactions,reverse_distant_interactions, entity_1_list =  None, entity_2_list = None, symmetric = False):
+                            distant_interactions,reverse_distant_interactions, key_order, entity_1_list =  None, entity_2_list = None):
     test_instances = []
     for test_sentence in test_sentences:
         entity_pairs = test_sentence.get_entity_pairs()
@@ -140,6 +140,7 @@ def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictio
             entity_2_token = test_sentence.get_token(pair[1])
             entity_1 = entity_1_token.get_normalized_ner().split('|')
             entity_2 = entity_2_token.get_normalized_ner().split('|')
+
             if entity_1_list is not None:
                 if len(set(entity_1).intersection(entity_1_list)) == 0:
                     continue
@@ -156,39 +157,21 @@ def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictio
                    continue
 
             entity_combos = set(itertools.product(entity_1,entity_2))
-            forward_test_instance = Instance(test_sentence, pair[0], pair[1], 0)
-            reverse_test_instance = Instance(test_sentence, pair[1], pair[0], 0)
+            forward_test_instance = Instance(test_sentence, pair[0], pair[1], [0] *len(key_order))
+            reverse_test_instance = Instance(test_sentence, pair[1], pair[0], [0] *len(key_order))
 
 
-            if symmetric is False:
-
-                # check if check returned true because of reverse
-                if len(entity_combos.intersection(distant_interactions)) > 0 :
-                    forward_test_instance.set_label(1)
-                elif len(entity_combos.intersection(reverse_distant_interactions)) > 0:
-                    reverse_test_instance.set_label(1)
+            for i in range(len(key_order)):
+                distant_key = key_order[i]
+                if 'SYMMETRIC' in distant_key:
+                    if len(entity_combos.intersection(distant_interactions[distant_key]))>0 or len(entity_combos.intersection(reverse_distant_interactions[distant_key]))>0:
+                        forward_test_instance.set_label_i(1,i)
+                        reverse_test_instance.set_label_i(1,i)
                 else:
-                    pass
-
-                test_instances.append(forward_test_instance)
-                test_instances.append(reverse_test_instance)
-
-            #if symmetric is True
-            else:
-                if len(entity_combos.intersection(distant_interactions)) > 0 or \
-                        len(entity_combos.intersection(reverse_distant_interactions)) > 0:
-                    forward_test_instance.set_label(1)
-                    reverse_test_instance.set_label(1)
-
-                forward_dep_type_path = ' '.join(forward_test_instance.get_type_dependency_path())
-                reverse_dep_type_path = ' '.join(reverse_test_instance.get_type_dependency_path())
-
-                if forward_dep_type_path in dep_dictionary:
-                    test_instances.append(forward_test_instance)
-                elif reverse_dep_type_path in dep_dictionary:
-                    test_instances.append(reverse_test_instance)
-                else:
-                    test_instances.append(forward_test_instance)
+                    if len(entity_combos.intersection(distant_interactions[distant_key])) > 0:
+                        forward_test_instance.set_label_i(1, i)
+                    elif len(entity_combos.intersection(reverse_distant_interactions[distant_key]))>0:
+                        reverse_test_instance.set_label_i(1, i)
 
 
     for instance in test_instances:
@@ -196,9 +179,11 @@ def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictio
 
     return test_instances
 
-def build_instances_predict(predict_sentences, dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary, entity_1_list = None, entity_2_list = None, symmetric = False):
+def build_instances_predict(predict_sentences,dep_dictionary, dep_word_dictionary, dep_element_dictionary, between_word_dictionary,key_order, entity_1_list = None, entity_2_list = None):
+
     predict_instances = []
     for p_sentence in predict_sentences:
+
         entity_pairs = p_sentence.get_entity_pairs()
 
         for pair in entity_pairs:
@@ -206,6 +191,7 @@ def build_instances_predict(predict_sentences, dep_dictionary, dep_path_word_dic
             entity_2_token = p_sentence.get_token(pair[1])
             entity_1 = entity_1_token.get_normalized_ner().split('|')
             entity_2 = entity_2_token.get_normalized_ner().split('|')
+
             if entity_1_list is not None:
                 if len(set(entity_1).intersection(entity_1_list)) == 0:
                     continue
@@ -221,26 +207,14 @@ def build_instances_predict(predict_sentences, dep_dictionary, dep_path_word_dic
                 if len(set(entity_1).intersection(entity_2_list)) > 0:
                    continue
 
-            forward_predict_instance = Instance(p_sentence, pair[0], pair[1], -1)
-            reverse_predict_instance = Instance(p_sentence, pair[1], pair[0], -1)
-            if symmetric is False:
-                predict_instances.append(forward_predict_instance)
-                predict_instances.append(reverse_predict_instance)
-            #if symmetric is True
-            else:
-                forward_dep_type_path = ' '.join(forward_predict_instance.get_type_dependency_path())
-                reverse_dep_type_path = ' '.join(reverse_predict_instance.get_type_dependency_path())
+            forward_predict_instance = Instance(p_sentence, pair[0], pair[1], [-1]*len(key_order))
+            reverse_predict_instance = Instance(p_sentence, pair[1], pair[0], [-1]*len(key_order))
 
-                if forward_dep_type_path in dep_dictionary:
-                    predict_instances.append(forward_predict_instance)
-                elif reverse_dep_type_path in dep_dictionary:
-                    predict_instances.append(reverse_predict_instance)
-                else:
-                    predict_instances.append(forward_predict_instance)
+            predict_instances.append(forward_predict_instance)
 
 
     for instance in predict_instances:
-        instance.build_features(dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary)
+        instance.build_features(dep_dictionary, dep_word_dictionary, dep_element_dictionary, between_word_dictionary)
 
     return predict_instances
 
@@ -250,7 +224,7 @@ def load_xml(xml_file, entity_1, entity_2):
     root = tree.getroot()
     candidate_sentences = []
     sentences = list(root.iter('sentence'))
-
+    pmids = set()
 
     for sentence in sentences:
         candidate_sentence = Sentence(sentence.find('PMID').text,sentence.get('id')) #get candidate sentence find for pmid because its a tag, get for 'id' because its an attribute
@@ -280,8 +254,9 @@ def load_xml(xml_file, entity_1, entity_2):
         #generates dependency matrix
             candidate_sentence.build_dependency_matrix()
             candidate_sentences.append(candidate_sentence)
+            pmids.add(candidate_sentence.pmid)
 
-    return candidate_sentences
+    return candidate_sentences, pmids
 
 
 def load_distant_kb(distant_kb_file, column_a, column_b,distant_rel_col):
@@ -322,21 +297,23 @@ def load_id_list(id_list,column_a):
 def load_abstracts_from_directory(directory_folder,entity_1,entity_2):
     print(directory_folder)
     total_abstract_sentences = []
+    total_pmids = set()
     for path, subdirs, files in os.walk(directory_folder):
         for name in files:
             if name.endswith('.txt'):
                 print(name)
                 xmlpath = os.path.join(path, name)
-                abstract_sentences = load_xml(xmlpath,entity_1,entity_2)
+                abstract_sentences,pmids = load_xml(xmlpath,entity_1,entity_2)
                 if len(abstract_sentences) > 0:
                     total_abstract_sentences += abstract_sentences
+                    total_pmids = total_pmids.union(pmids)
 
             else:
                 continue
     #save dictionary to pickle file so you don't have to read them in every time.
     #pickle.dump(abstract_dict, open(directory_folder+'.pkl', "wb"))
     print(len(total_abstract_sentences))
-    return total_abstract_sentences
+    return total_pmids,total_abstract_sentences
 
 def load_abstracts_from_pickle(pickle_file):
     abstract_dict = pickle.load( open(pickle_file, "rb" ) )

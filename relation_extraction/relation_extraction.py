@@ -17,18 +17,16 @@ from sklearn.externals import joblib
 from sklearn import metrics
 
 
-def predict_sentences(model_file, pubtator_file, entity_a, entity_b):
+def predict_sentences(model_file, abstract_folder, entity_a, entity_b):
 
-    predict_pmids, \
-    predict_forward_sentences,\
-    predict_reverse_sentences,\
-    entity_a_text, entity_b_text = load_data.load_pubtator_abstract_sentences(pubtator_file,entity_a,entity_b)
+    predict_pmids, predict_sentences = load_data.load_abstracts_from_directory(abstract_folder,entity_a,entity_b)
 
     dep_dictionary, dep_word_dictionary, dep_element_dictionary, between_word_dictionary, key_order = pickle.load(open(model_file + 'a.pickle','rb'))
 
-    predict_instances = load_data.build_instances_predict(predict_forward_sentences, predict_reverse_sentences,dep_dictionary,
+
+    predict_instances = load_data.build_instances_predict(predict_sentences,dep_dictionary,
                                                           dep_word_dictionary, dep_element_dictionary,
-                                                          between_word_dictionary,entity_a_text,entity_b_text,key_order)
+                                                          between_word_dictionary,key_order)
 
 
 
@@ -50,8 +48,8 @@ def predict_sentences(model_file, pubtator_file, entity_a, entity_b):
     return predict_instances,predicted_prob,key_order
 
 
-def parallel_train(model_out, pubtator_file, directional_distant_directory, symmetric_distant_directory,
-                  distant_entity_a_col, distant_entity_b_col, distant_rel_col, entity_a, entity_b,batch_id):
+def parallel_train(model_out, abstract_folder, directional_distant_directory, symmetric_distant_directory,
+                   distant_entity_a_col, distant_entity_b_col, distant_rel_col, entity_a, entity_b, batch_id):
 
     #get distant_relations from external knowledge base file
     distant_interactions, reverse_distant_interactions = load_data.load_distant_directories(directional_distant_directory,
@@ -61,20 +59,18 @@ def parallel_train(model_out, pubtator_file, directional_distant_directory, symm
                                                                                             distant_rel_col)
 
     key_order = sorted(distant_interactions)
-    #get pmids,sentences,
-    training_pmids,training_forward_sentences,training_reverse_sentences, entity_a_text, entity_b_text = load_data.load_pubtator_abstract_sentences(
-        pubtator_file,entity_a,entity_b)
+    #get pmids,sentences
+    training_pmids,training_sentences = load_data.load_abstracts_from_directory(abstract_folder,entity_a,entity_b)
 
     #hidden layer structure
     hidden_array = [256]
 
     #k-cross val
     instance_predicts,single_instances = cv.parallel_k_fold_cross_validation(batch_id, 10, training_pmids,
-                                                                             training_forward_sentences,
-                                                                             training_reverse_sentences,
+                                                                             training_sentences,
                                                                              distant_interactions,
                                                                              reverse_distant_interactions,
-                                                                             entity_a_text,entity_b_text,hidden_array,
+                                                                             hidden_array,
                                                                              key_order)
 
     cv.write_cv_output(model_out + '_' +str(batch_id)+'_predictions',instance_predicts,single_instances,key_order)
@@ -98,20 +94,11 @@ def distant_train(model_out, abstract_folder, directional_distant_directory, sym
     #print(distant_interactions)
     key_order = sorted(distant_interactions)
     #get pmids,sentences,
-    training_sentences = load_data.load_abstracts_from_directory(abstract_folder,entity_a,entity_b)
+    training_pmids,training_sentences = load_data.load_abstracts_from_directory(abstract_folder,entity_a,entity_b)
 
 
     #hidden layer structure
     hidden_array = [256]
-
-    #k-cross val
-    #instance_predicts, single_instances= cv.k_fold_cross_validation(10,training_pmids,training_forward_sentences,
-    #                                                                training_reverse_sentences,distant_interactions,
-    #                                                                reverse_distant_interactions,entity_a_text,
-    #                                                                entity_b_text,hidden_array,key_order)
-
-    #cv.write_cv_output(model_out+'_predictions',instance_predicts,single_instances,key_order)
-
 
 
     #training full model
@@ -138,7 +125,7 @@ def distant_train(model_out, abstract_folder, directional_distant_directory, sym
 
     print(count)
     print(len(training_instances))
-    '''
+
     X_train = np.array(X)
     y_train = np.array(y)
 
@@ -174,7 +161,7 @@ def distant_train(model_out, abstract_folder, directional_distant_directory, sym
 
     return trained_model_path
 
-    '''
+
 def main():
     ''' Main method, mode determines whether program runs training, testing, or prediction'''
     mode = sys.argv[1]  # what option
@@ -201,7 +188,7 @@ def main():
 
     elif mode.upper() == "PARALLEL_TRAIN":
         model_out = sys.argv[2]  # location of where model should be saved after training
-        pubtator_file = sys.argv[3]  # xml file of sentences from Stanford Parser
+        abstract_folder = sys.argv[3]  # xml file of sentences from Stanford Parser
         directional_distant_directory = sys.argv[4]  # distant supervision knowledge base to use
         symmetric_distant_directory = sys.argv[5]
         distant_entity_a_col = int(sys.argv[6])  # entity 1 column
@@ -213,7 +200,7 @@ def main():
 
         #symmetric = sys.argv[10].upper() in ['TRUE', 'Y', 'YES']  # is the relation symmetrical (i.e. binds)
 
-        trained_model_batch = parallel_train(model_out, pubtator_file, directional_distant_directory,symmetric_distant_directory,
+        trained_model_batch = parallel_train(model_out, abstract_folder, directional_distant_directory,symmetric_distant_directory,
                       distant_entity_a_col, distant_entity_b_col, distant_rel_col, entity_a,entity_b,batch_id)
 
         print('finished training: ' + str(trained_model_batch))
