@@ -58,8 +58,8 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
         entity_pairs = candidate_sentence.get_entity_pairs()
 
         for pair in entity_pairs:
-            entity_1_token = candidate_sentence.get_token(pair[0])
-            entity_2_token = candidate_sentence.get_token(pair[1])
+            entity_1_token = candidate_sentence.get_token(pair[0][0])
+            entity_2_token = candidate_sentence.get_token(pair[1][0])
             entity_1 = entity_1_token.get_normalized_ner().split('|')
             entity_2 = entity_2_token.get_normalized_ner().split('|')
 
@@ -136,8 +136,8 @@ def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictio
         entity_pairs = test_sentence.get_entity_pairs()
 
         for pair in entity_pairs:
-            entity_1_token = test_sentence.get_token(pair[0])
-            entity_2_token = test_sentence.get_token(pair[1])
+            entity_1_token = test_sentence.get_token(pair[0][0])
+            entity_2_token = test_sentence.get_token(pair[1][0])
             entity_1 = entity_1_token.get_normalized_ner().split('|')
             entity_2 = entity_2_token.get_normalized_ner().split('|')
 
@@ -187,8 +187,8 @@ def build_instances_predict(predict_sentences,dep_dictionary, dep_word_dictionar
         entity_pairs = p_sentence.get_entity_pairs()
 
         for pair in entity_pairs:
-            entity_1_token = p_sentence.get_token(pair[0])
-            entity_2_token = p_sentence.get_token(pair[1])
+            entity_1_token = p_sentence.get_token(pair[0][0])
+            entity_2_token = p_sentence.get_token(pair[1][0])
             entity_1 = entity_1_token.get_normalized_ner().split('|')
             entity_2 = entity_2_token.get_normalized_ner().split('|')
 
@@ -248,11 +248,11 @@ def load_xml(xml_file, entity_1, entity_2):
         for d in deps:
             candidate_dep = Dependency(d.get('type'), candidate_sentence.get_token(d.find('governor').get('idx')), candidate_sentence.get_token(d.find('dependent').get('idx')))
             candidate_sentence.add_dependency(candidate_dep)
+        # generates dependency matrix
+        candidate_sentence.build_dependency_matrix()
         #gets entity pairs of sentence
         candidate_sentence.generate_entity_pairs(entity_1, entity_2)
         if candidate_sentence.get_entity_pairs() is not None:
-        #generates dependency matrix
-            candidate_sentence.build_dependency_matrix()
             candidate_sentences.append(candidate_sentence)
             pmids.add(candidate_sentence.pmid)
 

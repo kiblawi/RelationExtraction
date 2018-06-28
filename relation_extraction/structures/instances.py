@@ -81,8 +81,8 @@ class Instance(object):
 
     def build_dependency_path_indexes(self):
         '''Builds and returns shortest dependency path by calling djikstras algorithm'''
-        source_token_no = self.start
-        target_token_no = self.end
+        source_token_no = self.start[1] #2nd element of pair, 1st element is between token
+        target_token_no = self.end[1]#2nd element of pair, 1st element is between token
         previous = dijkstra(self.sentence.get_dependency_matrix(), source_token_no)
         if previous[target_token_no] != -1:
             prev = previous[target_token_no]
@@ -150,7 +150,7 @@ class Instance(object):
 
     def build_words_between_features(self):
         between_words = []
-        for i in range(min(self.start,self.end) + 1,max(self.start,self.end)):
+        for i in range(min(self.start[0],self.end[0]) + 1,max(self.start[0],self.end[0])): #words between index is the first element of start and end variables 2nd element is for dependency path
             current_token = self.sentence.get_token(i)
             current_word = current_token.get_lemma()
             if current_token.get_normalized_ner() is not None:

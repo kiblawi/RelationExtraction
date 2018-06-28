@@ -3,6 +3,8 @@ import itertools
 
 #class objects for tokens, dependencies, and sentences
 
+
+
 class Token(object):
     def __init__(self, token_id, word, lemma, char_begin, char_end, pos, ner, normalized_ner=None):
         '''Constructor for Token objects'''
@@ -107,6 +109,18 @@ class Sentence(object):
     def get_entities(self):
         return self.entities
 
+
+    def get_dependency_index(self,entity_list):
+        count = -1
+        index = -1
+        for l in entity_list:
+            dep_sum = sum(a != '' for a in self.dependency_matrix[l])
+            if dep_sum > count:
+                count = dep_sum
+                index = l
+
+        return index
+
     def generate_entity_pairs(self, entity_type_1_name, entity_type_2_name):
         '''generates pairs between entities'''
         entity_type_1 = set()
@@ -124,9 +138,16 @@ class Sentence(object):
                         continue
                 #determines which entity token to look at for shortest distance
                     if max(pair[0]) > max(pair[1]):
-                        self.pairs.append((pair[0][0], pair[1][-1]))
+                        #between_pair = (pair[0][0], pair[1][-1])
+                        p_0_index = (pair[0][0],self.get_dependency_index(pair[0]))
+                        p_1_index = (pair[1][-1],self.get_dependency_index(reversed(pair[1])))
+                        self.pairs.append((p_0_index,p_1_index))
                     else:
-                        self.pairs.append((pair[0][-1], pair[1][0]))
+                        #between_pair = (pair[0][-1], pair[1][0])
+                        p_0_index = (pair[0][-1],self.get_dependency_index(reversed(pair[0])))
+                        p_1_index = (pair[1][0],self.get_dependency_index(pair[1]))
+                        self.pairs.append((p_0_index, p_1_index))
+
         else:
             self.pairs = None
 

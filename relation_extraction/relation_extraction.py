@@ -123,8 +123,7 @@ def distant_train(model_out, abstract_folder, directional_distant_directory, sym
             count +=1
         y.append(t.label)
 
-    print(count)
-    print(len(training_instances))
+
 
     X_train = np.array(X)
     y_train = np.array(y)
