@@ -8,12 +8,39 @@ import math
 import random
 import numpy as np
 
+import tensorflow as tf
+
 
 
 from lxml import etree
 
 from structures.sentence_structure import Sentence, Token, Dependency
 from structures.instances import Instance
+
+
+def np_to_tfrecord(features,labels,tfresult_file):
+
+    writer = tf.python_io.TFRecordWriter(tfresult_file)
+    print(features.shape[0])
+    for i in range(features.shape[0]):
+        x = features[i]
+        y = labels[i]
+
+
+        feature_dict = {}
+        feature_dict['x'] = tf.train.Feature(float_list=tf.train.FloatList(value=x.flatten()))
+        feature_dict['y'] = tf.train.Feature(float_list=tf.train.FloatList(value=y.flatten()))
+        #print(feature_dict['x'])
+
+
+        example = tf.train.Example(features=tf.train.Features(feature=feature_dict))
+        serialized=example.SerializeToString()
+        writer.write(serialized)
+    writer.close()
+
+    return tfresult_file
+
+
 
 
 def build_dataset(words, occur_count = None):
@@ -111,12 +138,12 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
             candidate_instances.append(reverse_train_instance)
 
 
-    data, count, dep_path_word_dictionary, reversed_dictionary = build_dataset(path_word_vocabulary,5)
-    dep_data, dep_count, dep_dictionary, dep_reversed_dictionary = build_dataset(dep_type_vocabulary,5)
+    data, count, dep_path_word_dictionary, reversed_dictionary = build_dataset(path_word_vocabulary,500)
+    dep_data, dep_count, dep_dictionary, dep_reversed_dictionary = build_dataset(dep_type_vocabulary,500)
     dep_element_data, dep_element_count, dep_element_dictionary, dep_element_reversed_dictionary = build_dataset(
-        dep_type_word_elements_vocabulary,5)
+        dep_type_word_elements_vocabulary,500)
     between_data, between_count, between_word_dictionary, between_reversed_dictionary = build_dataset(
-        words_between_entities_vocabulary,5)
+        words_between_entities_vocabulary,500)
 
 
     print(dep_dictionary)
@@ -131,6 +158,10 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
 
 def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary,
                             distant_interactions,reverse_distant_interactions, key_order, entity_1_list =  None, entity_2_list = None):
+    #print('in_test')
+    #print(len(dep_dictionary))
+    #print(len(dep_path_word_dictionary))
+    #print(len(dep_element_dictionary))
     test_instances = []
     for test_sentence in test_sentences:
         entity_pairs = test_sentence.get_entity_pairs()
@@ -167,15 +198,19 @@ def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictio
                     if len(entity_combos.intersection(distant_interactions[distant_key]))>0 or len(entity_combos.intersection(reverse_distant_interactions[distant_key]))>0:
                         forward_test_instance.set_label_i(1,i)
                         reverse_test_instance.set_label_i(1,i)
+
                 else:
                     if len(entity_combos.intersection(distant_interactions[distant_key])) > 0:
                         forward_test_instance.set_label_i(1, i)
                     elif len(entity_combos.intersection(reverse_distant_interactions[distant_key]))>0:
                         reverse_test_instance.set_label_i(1, i)
 
+            test_instances.append(forward_test_instance)
+            #test_instances.append(reverse_test_instance)
 
     for instance in test_instances:
         instance.build_features(dep_dictionary, dep_path_word_dictionary, dep_element_dictionary,  between_word_dictionary)
+
 
     return test_instances
 
@@ -340,3 +375,102 @@ def load_distant_directories(directional_distant_directory,symmetric_distant_dir
         reverse_dictionary['SYMMETRIC'+filename] = reverse_distant_interactions
 
     return forward_dictionary, reverse_dictionary
+
+
+def build_dictionaries_from_directory(directory_folder,entity_a,entity_b, entity_1_list=None,entity_2_list=None):
+    print(directory_folder)
+    path_word_vocabulary = []
+    words_between_entities_vocabulary = []
+    dep_type_vocabulary = []
+    dep_type_word_elements_vocabulary = []
+
+    total_pmids = set()
+    for path, subdirs, files in os.walk(directory_folder):
+        for name in files:
+            if name.endswith('.txt'):
+                print(name)
+                xmlpath = os.path.join(path, name)
+                abstract_sentences, pmids = load_xml(xmlpath, entity_a, entity_b)
+                for candidate_sentence in abstract_sentences:
+                    entity_pairs = candidate_sentence.get_entity_pairs()
+
+                    for pair in entity_pairs:
+                        entity_1_token = candidate_sentence.get_token(pair[0][0])
+                        entity_2_token = candidate_sentence.get_token(pair[1][0])
+                        entity_1 = entity_1_token.get_normalized_ner().split('|')
+                        entity_2 = entity_2_token.get_normalized_ner().split('|')
+
+                        if entity_1_list is not None:
+                            if len(set(entity_1).intersection(entity_1_list)) == 0:
+                                continue
+
+                            # check if entity_2 overlaps with entity_1_list if so continue
+                            if len(set(entity_2).intersection(entity_1_list)) > 0:
+                                continue
+
+                        if entity_2_list is not None:
+                            if len(set(entity_2).intersection(entity_2_list)) == 0:
+                                continue
+
+                            # check if entity_1 overlaps with entity_2_list if so continue
+                            if len(set(entity_1).intersection(entity_2_list)) > 0:
+                                continue
+
+                        entity_combos = set(itertools.product(entity_1, entity_2))
+                        # print(entity_combos)
+
+                        forward_train_instance = Instance(candidate_sentence, pair[0], pair[1], None)
+                        # print(forward_train_instance.dependency_elements)
+                        reverse_train_instance = Instance(candidate_sentence, pair[1], pair[0], None)
+
+                        #get vocabs
+                        path_word_vocabulary += forward_train_instance.dependency_words
+                        path_word_vocabulary += reverse_train_instance.dependency_words
+                        words_between_entities_vocabulary += forward_train_instance.between_words
+                        words_between_entities_vocabulary += reverse_train_instance.between_words
+                        dep_type_word_elements_vocabulary += forward_train_instance.dependency_elements
+                        dep_type_word_elements_vocabulary += reverse_train_instance.dependency_elements
+                        dep_type_vocabulary.append(forward_train_instance.dependency_path)
+                        dep_type_vocabulary.append(reverse_train_instance.dependency_path)
+
+
+            else:
+                continue
+
+    data, count, dep_path_word_dictionary, reversed_dictionary = build_dataset(path_word_vocabulary,5)
+    dep_data, dep_count, dep_dictionary, dep_reversed_dictionary = build_dataset(dep_type_vocabulary,5)
+    dep_element_data, dep_element_count, dep_element_dictionary, dep_element_reversed_dictionary = build_dataset(
+        dep_type_word_elements_vocabulary,5)
+    between_data, between_count, between_word_dictionary, between_reversed_dictionary = build_dataset(
+        words_between_entities_vocabulary,5)
+
+    return dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary
+
+
+def build_instances_from_directory(directory_folder, entity_a, entity_b, dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary,
+                                   distant_interactions, reverse_distant_interactions, key_order):
+    total_dataset= []
+    for path, subdirs, files in os.walk(directory_folder):
+        for name in files:
+            if name.endswith('.txt'):
+                print(name)
+                xmlpath = os.path.join(path, name)
+                test_sentences, pmids = load_xml(xmlpath, entity_a, entity_b)
+                candidate_instances = build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary,
+                            distant_interactions,reverse_distant_interactions, key_order, entity_1_list =  None, entity_2_list = None)
+
+                X = []
+                y = []
+                for ci in candidate_instances:
+                    X.append(ci.features)
+                    y.append(ci.label)
+                features = np.array(X)
+                print(features)
+                labels = np.array(y)
+                print(labels)
+
+                tfrecord_filename = './tfrecords/' + name.replace('.txt','.tfrecord')
+
+                total_dataset.append(np_to_tfrecord(features,labels,tfrecord_filename))
+
+    return total_dataset

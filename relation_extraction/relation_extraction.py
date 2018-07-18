@@ -10,6 +10,7 @@ import pickle
 import time
 
 
+
 from machine_learning_models import tf_sess_neural_network as snn
 
 from sklearn.linear_model import LogisticRegression, SGDClassifier
@@ -78,6 +79,44 @@ def parallel_train(model_out, abstract_folder, directional_distant_directory, sy
 
     return batch_id
 
+def distant_train_large_data(model_out, abstract_folder, directional_distant_directory, symmetric_distant_directory,
+                  distant_entity_a_col, distant_entity_b_col, distant_rel_col, entity_a, entity_b):
+
+    #get distant_relations from external knowledge base file
+    print(directional_distant_directory)
+    print(symmetric_distant_directory)
+    print(distant_entity_a_col)
+    print(distant_entity_b_col)
+    print(distant_rel_col)
+    distant_interactions, reverse_distant_interactions = load_data.load_distant_directories(directional_distant_directory,
+                                                                                            symmetric_distant_directory,
+                                                                                            distant_entity_a_col,
+                                                                                            distant_entity_b_col,distant_rel_col)
+    #print(distant_interactions)
+
+    key_order = sorted(distant_interactions)
+    #get pmids,sentences,
+
+    #load in sentences and try to get dictionaries built
+    dep_dictionary, \
+    dep_word_dictionary, \
+    dep_element_dictionary, \
+    between_word_dictionary = load_data.build_dictionaries_from_directory(abstract_folder, entity_a, entity_b)
+
+    num_features = len(dep_dictionary) + len(dep_word_dictionary) + len(dep_element_dictionary)+ len(between_word_dictionary)
+
+
+    total_dataset_files = load_data.build_instances_from_directory(abstract_folder, entity_a, entity_b, dep_dictionary, dep_word_dictionary,
+                                   dep_element_dictionary, between_word_dictionary,
+                                   distant_interactions, reverse_distant_interactions, key_order)
+
+    hidden_array = [256]
+    trained_model_path = snn.neural_network_train_tfrecord(total_dataset_files, hidden_array, model_out + '/', num_features, key_order)
+
+
+    return True
+
+
 def distant_train(model_out, abstract_folder, directional_distant_directory, symmetric_distant_directory,
                   distant_entity_a_col, distant_entity_b_col, distant_rel_col, entity_a, entity_b):
 
@@ -92,6 +131,7 @@ def distant_train(model_out, abstract_folder, directional_distant_directory, sym
                                                                                             distant_entity_a_col,
                                                                                             distant_entity_b_col,distant_rel_col)
     #print(distant_interactions)
+
     key_order = sorted(distant_interactions)
     #get pmids,sentences,
     training_pmids,training_sentences = load_data.load_abstracts_from_directory(abstract_folder,entity_a,entity_b)
@@ -164,7 +204,7 @@ def distant_train(model_out, abstract_folder, directional_distant_directory, sym
 def main():
     ''' Main method, mode determines whether program runs training, testing, or prediction'''
     mode = sys.argv[1]  # what option
-    if mode.upper() == "DISTANT_TRAIN":
+    if "DISTANT_TRAIN" in mode.upper():
         model_out = sys.argv[2]  # location of where model should be saved after training
         abstract_folder = sys.argv[3]  # xml file of sentences from Stanford Parser
         directional_distant_directory = sys.argv[4]  # distant supervision knowledge base to use
@@ -180,12 +220,19 @@ def main():
 
         #symmetric = sys.argv[10].upper() in ['TRUE', 'Y', 'YES']  # is the relation symmetrical (i.e. binds)
 
-        trained_model_path = distant_train(model_out, abstract_folder, directional_distant_directory,symmetric_distant_directory,
+        if 'LARGE' in mode.upper():
+            trained_model_path = distant_train_large_data(model_out, abstract_folder, directional_distant_directory,
+                                               symmetric_distant_directory,
+                                               distant_entity_a_col, distant_entity_b_col, distant_rel_col, entity_a,
+                                               entity_b)
+        else:
+            trained_model_path = distant_train(model_out, abstract_folder, directional_distant_directory,symmetric_distant_directory,
                       distant_entity_a_col, distant_entity_b_col, distant_rel_col, entity_a,entity_b)
+
 
         print(trained_model_path)
 
-    elif mode.upper() == "PARALLEL_TRAIN":
+    elif "PARALLEL_TRAIN" in mode.upper():
         model_out = sys.argv[2]  # location of where model should be saved after training
         abstract_folder = sys.argv[3]  # xml file of sentences from Stanford Parser
         directional_distant_directory = sys.argv[4]  # distant supervision knowledge base to use
@@ -204,7 +251,7 @@ def main():
 
         print('finished training: ' + str(trained_model_batch))
 
-    elif mode.upper() == "PREDICT":
+    elif "PREDICT" in mode.upper():
         model_file = sys.argv[2]
         sentence_file = sys.argv[3]
         entity_a = sys.argv[4].upper()

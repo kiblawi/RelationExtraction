@@ -34,6 +34,83 @@ def feed_forward(input_tensor, num_hidden_layers, weights, biases,keep_prob):
 
     return out_layer_bias_addition
 
+def neural_network_train_tfrecord(total_dataset_files, hidden_array, model_dir, num_features, key_order):
+    tf.reset_default_graph()
+    num_labels = len(key_order)
+    print(num_features)
+    num_hidden_layers = len(hidden_array)
+    #build dataset
+    dataset = tf.data.TFRecordDataset(total_dataset_files)
+    dataset = dataset.map(lambda example: tf.parse_single_example(
+      example,
+      features={
+        'x': tf.FixedLenSequenceFeature([num_features], tf.float32,allow_missing=True, default_value=0),
+        'y': tf.FixedLenSequenceFeature([num_labels], tf.float32,allow_missing=True, default_value=0)
+        }))
+
+
+    iterator = dataset.make_initializable_iterator()
+
+    training_example = iterator.get_next()
+
+    '''
+    with tf.Session() as sess:
+        sess.run(iterator.initializer)
+        try:
+            while True:
+                print(sess.run((training_example['x'],training_example['y'])))
+
+        except tf.errors.OutOfRangeError:
+            pass
+
+    '''
+
+    keep_prob = tf.placeholder(tf.float32, name='keep_prob')
+
+    weights = {}
+    biases = {}
+    previous_layer_size = num_features
+    for i in range(num_hidden_layers):
+        num_hidden_units = hidden_array[i]
+        weights[i] = tf.Variable(tf.random_normal([previous_layer_size, num_hidden_units], stddev=0.1),
+                                 name='weights' + str(i))
+        biases[i] = tf.Variable(tf.random_normal([num_hidden_units], stddev=0.1), name='biases' + str(i))
+        previous_layer_size = num_hidden_units
+    weights['out'] = tf.Variable(tf.random_normal([previous_layer_size, num_labels], stddev=0.1), name='out_weights')
+    biases['out'] = tf.Variable(tf.random_normal([num_labels], stddev=0.1), name='out_bias')
+
+    yhat = feed_forward(training_example['x'], num_hidden_layers, weights, biases, keep_prob)
+    prob_yhat = tf.nn.sigmoid(yhat, name='predict_prob')
+    class_yhat = tf.to_int32(prob_yhat > 0.5, name='class_predict')
+
+    cost = tf.nn.sigmoid_cross_entropy_with_logits(labels=training_example['y'], logits=yhat)
+    updates = tf.train.GradientDescentOptimizer(0.01).minimize(cost)
+
+    saver = tf.train.Saver()
+    # Run SGD
+    with tf.Session() as sess:
+        init = tf.global_variables_initializer()
+        sess.run(init)
+
+
+        writer = tf.summary.FileWriter(model_dir, graph=tf.get_default_graph())
+
+        for epoch in range(5):
+            count = 0
+            print("Epoch: ",epoch)
+            sess.run(iterator.initializer)
+            while True:
+                try:
+                    u= sess.run([updates], feed_dict={keep_prob: 0.5})
+                    save_path = saver.save(sess, model_dir)
+                except tf.errors.OutOfRangeError:
+                    break
+
+
+
+
+    return True
+
 def neural_network_train(train_X,train_y,test_X,test_y,hidden_array,model_dir,key_order):
     num_features = train_X.shape[1]
     num_labels = train_y.shape[1]
