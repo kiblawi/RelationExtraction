@@ -104,14 +104,14 @@ def distant_train_large_data(model_out, abstract_folder, directional_distant_dir
     between_word_dictionary = load_data.build_dictionaries_from_directory(abstract_folder, entity_a, entity_b)
 
     num_features = len(dep_dictionary) + len(dep_word_dictionary) + len(dep_element_dictionary)+ len(between_word_dictionary)
+    print(num_features)
 
-
-    total_dataset_files = load_data.build_instances_from_directory(abstract_folder, entity_a, entity_b, dep_dictionary, dep_word_dictionary,
-                                   dep_element_dictionary, between_word_dictionary,
-                                   distant_interactions, reverse_distant_interactions, key_order)
+    #total_dataset_files = load_data.build_instances_from_directory(abstract_folder, entity_a, entity_b, dep_dictionary, dep_word_dictionary,
+                                   #dep_element_dictionary, between_word_dictionary,
+                                   #distant_interactions, reverse_distant_interactions, key_order)
 
     hidden_array = [256]
-    trained_model_path = snn.neural_network_train_tfrecord(total_dataset_files, hidden_array, model_out + '/', num_features, key_order)
+    #trained_model_path = snn.neural_network_train_tfrecord(total_dataset_files, hidden_array, model_out + '/', num_features, key_order)
 
 
     return True
