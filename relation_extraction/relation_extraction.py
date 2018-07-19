@@ -95,23 +95,38 @@ def distant_train_large_data(model_out, abstract_folder, directional_distant_dir
     #print(distant_interactions)
 
     key_order = sorted(distant_interactions)
-    #get pmids,sentences,
 
+    #check if there is already dictionaries
+    if os.path.isfile(model_out + 'a.pickle'):
+        dep_dictionary, dep_word_dictionary, dep_element_dictionary, between_word_dictionary, key_order = pickle.load(open(model_out + 'a.pickle', 'rb'))
     #load in sentences and try to get dictionaries built
-    dep_dictionary, \
-    dep_word_dictionary, \
-    dep_element_dictionary, \
-    between_word_dictionary = load_data.build_dictionaries_from_directory(abstract_folder, entity_a, entity_b)
+    else:
+        dep_dictionary, \
+        dep_word_dictionary, \
+        dep_element_dictionary, \
+        between_word_dictionary = load_data.build_dictionaries_from_directory(abstract_folder, entity_a, entity_b)
+
+        pickle.dump([dep_dictionary, dep_word_dictionary, dep_element_dictionary, between_word_dictionary, key_order],
+                    open(model_out + 'a.pickle', 'wb'))
 
     num_features = len(dep_dictionary) + len(dep_word_dictionary) + len(dep_element_dictionary)+ len(between_word_dictionary)
     print(num_features)
 
-    #total_dataset_files = load_data.build_instances_from_directory(abstract_folder, entity_a, entity_b, dep_dictionary, dep_word_dictionary,
-                                   #dep_element_dictionary, between_word_dictionary,
-                                   #distant_interactions, reverse_distant_interactions, key_order)
+    total_dataset_files = []
+    for path, subdirs, files in os.walk(abstract_folder):
+        for name in files:
+            if name.endswith('.tfrecord'):
+                print(name)
+                total_dataset_files.append(abstract_folder + '/' + name)
+    print(total_dataset_files)
+    if len(total_dataset_files) == 0:
+        total_dataset_files = load_data.build_instances_from_directory(abstract_folder, entity_a, entity_b, dep_dictionary, dep_word_dictionary,
+                                   dep_element_dictionary, between_word_dictionary,
+                                   distant_interactions, reverse_distant_interactions, key_order)
 
     hidden_array = [256]
-    #trained_model_path = snn.neural_network_train_tfrecord(total_dataset_files, hidden_array, model_out + '/', num_features, key_order)
+    print(total_dataset_files)
+    trained_model_path = snn.neural_network_train_tfrecord(total_dataset_files, hidden_array, model_out + '/', num_features, key_order)
 
 
     return True

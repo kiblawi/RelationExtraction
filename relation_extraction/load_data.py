@@ -469,7 +469,7 @@ def build_instances_from_directory(directory_folder, entity_a, entity_b, dep_dic
                 labels = np.array(y)
                 print(labels)
 
-                tfrecord_filename = './tfrecords/' + name.replace('.txt','.tfrecord')
+                tfrecord_filename = directory_folder +'/'+ name.replace('.txt','.tfrecord')
 
                 total_dataset.append(np_to_tfrecord(features,labels,tfrecord_filename))
 

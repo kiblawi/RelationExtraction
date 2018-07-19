@@ -95,7 +95,7 @@ def neural_network_train_tfrecord(total_dataset_files, hidden_array, model_dir, 
 
         writer = tf.summary.FileWriter(model_dir, graph=tf.get_default_graph())
 
-        for epoch in range(5):
+        for epoch in range(1):
             count = 0
             print("Epoch: ",epoch)
             sess.run(iterator.initializer)
@@ -109,7 +109,7 @@ def neural_network_train_tfrecord(total_dataset_files, hidden_array, model_dir, 
 
 
 
-    return True
+    return save_path
 
 def neural_network_train(train_X,train_y,test_X,test_y,hidden_array,model_dir,key_order):
     num_features = train_X.shape[1]
