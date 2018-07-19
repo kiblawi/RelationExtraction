@@ -21,7 +21,7 @@ from structures.instances import Instance
 def np_to_tfrecord(features,labels,tfresult_file):
 
     writer = tf.python_io.TFRecordWriter(tfresult_file)
-    print(features.shape[0])
+    #print(features.shape[0])
     for i in range(features.shape[0]):
         x = features[i]
         y = labels[i]
@@ -453,7 +453,7 @@ def build_instances_from_directory(directory_folder, entity_a, entity_b, dep_dic
     for path, subdirs, files in os.walk(directory_folder):
         for name in files:
             if name.endswith('.txt'):
-                print(name)
+                #print(name)
                 xmlpath = os.path.join(path, name)
                 test_sentences, pmids = load_xml(xmlpath, entity_a, entity_b)
                 candidate_instances = build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary,
@@ -465,9 +465,9 @@ def build_instances_from_directory(directory_folder, entity_a, entity_b, dep_dic
                     X.append(ci.features)
                     y.append(ci.label)
                 features = np.array(X)
-                print(features)
+                #print(features)
                 labels = np.array(y)
-                print(labels)
+                #print(labels)
 
                 tfrecord_filename = directory_folder +'/'+ name.replace('.txt','.tfrecord')
 
