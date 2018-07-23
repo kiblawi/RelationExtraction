@@ -67,14 +67,14 @@ def neural_network_train_tfrecord(total_dataset_files, hidden_array, model_dir, 
     weights['out'] = tf.Variable(tf.random_normal([previous_layer_size, num_labels], stddev=0.1), name='out_weights')
     biases['out'] = tf.Variable(tf.random_normal([num_labels], stddev=0.1), name='out_bias')
 
-    with tf.device("/gpu:0"):
-        yhat = feed_forward(training_example['x'], num_hidden_layers, weights, biases, keep_prob)
-        prob_yhat = tf.nn.sigmoid(yhat, name='predict_prob')
-        class_yhat = tf.to_int32(prob_yhat > 0.5, name='class_predict')
+    #with tf.device("/gpu:0"):
+    yhat = feed_forward(training_example['x'], num_hidden_layers, weights, biases, keep_prob)
+    prob_yhat = tf.nn.sigmoid(yhat, name='predict_prob')
+    class_yhat = tf.to_int32(prob_yhat > 0.5, name='class_predict')
 
-    with tf.device("/gpu:0"):
-        cost = tf.nn.sigmoid_cross_entropy_with_logits(labels=training_example['y'], logits=yhat)
-        updates = tf.train.GradientDescentOptimizer(0.01).minimize(cost)
+    #with tf.device("/gpu:0"):
+    cost = tf.nn.sigmoid_cross_entropy_with_logits(labels=training_example['y'], logits=yhat)
+    updates = tf.train.GradientDescentOptimizer(0.01).minimize(cost)
 
     saver = tf.train.Saver()
     # Run SGD
