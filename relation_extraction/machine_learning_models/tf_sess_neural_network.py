@@ -72,7 +72,7 @@ def neural_network_train_tfrecord(total_dataset_files, hidden_array, model_dir, 
         prob_yhat = tf.nn.sigmoid(yhat, name='predict_prob')
         class_yhat = tf.to_int32(prob_yhat > 0.5, name='class_predict')
 
-    with tf.device("/gpu:1"):
+    with tf.device("/gpu:0"):
         cost = tf.nn.sigmoid_cross_entropy_with_logits(labels=training_example['y'], logits=yhat)
         updates = tf.train.GradientDescentOptimizer(0.01).minimize(cost)
 
