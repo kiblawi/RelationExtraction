@@ -13,22 +13,22 @@ def feed_forward(input_tensor, num_hidden_layers, weights, biases,keep_prob):
     hidden_act  = {}
     dropout = {}
 
-    for i in range(num_hidden_layers):
-        #with tf.name_scope('hidden_layer'+str(i)):
-        if i == 0:
-            hidden_mult[i] = tf.matmul(input_tensor,weights[i],name='hidden_mult'+str(i))
-        else:
-            hidden_mult[i] = tf.matmul(hidden_act[i-1],weights[i],name='hidden_mult'+str(i))
-        hidden_add[i] = tf.add(hidden_mult[i], biases[i],'hidden_add'+str(i))
-        hidden_act[i] = tf.nn.relu(hidden_add[i],'hidden_act'+str(i))
-        dropout[i] = tf.nn.dropout(hidden_act[i], keep_prob)
+    with tf.device("/gpu:0"):
+        for i in range(num_hidden_layers):
+            if i == 0:
+                hidden_mult[i] = tf.matmul(input_tensor,weights[i],name='hidden_mult'+str(i))
+            else:
+                hidden_mult[i] = tf.matmul(hidden_act[i-1],weights[i],name='hidden_mult'+str(i))
+            hidden_add[i] = tf.add(hidden_mult[i], biases[i],'hidden_add'+str(i))
+            hidden_act[i] = tf.nn.relu(hidden_add[i],'hidden_act'+str(i))
+            dropout[i] = tf.nn.dropout(hidden_act[i], keep_prob)
 
-    #with tf.name_scope('out_activation'):
-    if num_hidden_layers != 0:
-        out_layer_multiplication = tf.matmul(dropout[num_hidden_layers-1],weights['out'],name='out_layer_mult')
-    else:
-        out_layer_multiplication = tf.matmul(input_tensor,weights['out'],name = 'out_layer_mult')
-    out_layer_bias_addition = tf.add(out_layer_multiplication,biases['out'],name='out_layer_add')
+        #with tf.name_scope('out_activation'):
+        if num_hidden_layers != 0:
+            out_layer_multiplication = tf.matmul(dropout[num_hidden_layers-1],weights['out'],name='out_layer_mult')
+        else:
+            out_layer_multiplication = tf.matmul(input_tensor,weights['out'],name = 'out_layer_mult')
+        out_layer_bias_addition = tf.add(out_layer_multiplication,biases['out'],name='out_layer_add')
     #out_layer_activation = out_layer_bias_addition
     #out_layer_activation = tf.identity(out_layer_bias_addition, name='out_layer_activation')
 
@@ -53,18 +53,6 @@ def neural_network_train_tfrecord(total_dataset_files, hidden_array, model_dir, 
 
     training_example = iterator.get_next()
 
-    '''
-    with tf.Session() as sess:
-        sess.run(iterator.initializer)
-        try:
-            while True:
-                print(sess.run((training_example['x'],training_example['y'])))
-
-        except tf.errors.OutOfRangeError:
-            pass
-
-    '''
-
     keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
     weights = {}
@@ -83,12 +71,13 @@ def neural_network_train_tfrecord(total_dataset_files, hidden_array, model_dir, 
     prob_yhat = tf.nn.sigmoid(yhat, name='predict_prob')
     class_yhat = tf.to_int32(prob_yhat > 0.5, name='class_predict')
 
-    cost = tf.nn.sigmoid_cross_entropy_with_logits(labels=training_example['y'], logits=yhat)
-    updates = tf.train.GradientDescentOptimizer(0.01).minimize(cost)
+    with tf.device("/gpu:1"):
+        cost = tf.nn.sigmoid_cross_entropy_with_logits(labels=training_example['y'], logits=yhat)
+        updates = tf.train.GradientDescentOptimizer(0.01).minimize(cost)
 
     saver = tf.train.Saver()
     # Run SGD
-    with tf.Session() as sess:
+    with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
         init = tf.global_variables_initializer()
         sess.run(init)
 
