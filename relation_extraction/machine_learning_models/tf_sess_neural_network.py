@@ -92,6 +92,8 @@ def neural_network_train_tfrecord(total_dataset_files, hidden_array, model_dir, 
             while True:
                 try:
                     u= sess.run([updates], feed_dict={keep_prob: 0.5})
+                    print(count)
+                    count+=1
                     save_path = saver.save(sess, model_dir)
                 except tf.errors.OutOfRangeError:
                     break
