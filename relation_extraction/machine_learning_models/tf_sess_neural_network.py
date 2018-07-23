@@ -48,13 +48,13 @@ def neural_network_train_tfrecord(total_dataset_files, hidden_array, model_dir, 
         'y': tf.FixedLenSequenceFeature([num_labels], tf.float32,allow_missing=True, default_value=0)
         }))
 
-
+    dataset = dataset.repeat(10)
     iterator = dataset.make_initializable_iterator()
 
     training_example = iterator.get_next()
 
-    keep_prob = tf.placeholder(tf.float32, name='keep_prob')
-
+    #keep_prob = tf.placeholder(tf.float32, name='keep_prob')
+    keep_prob = tf.constant(0.5)
     weights = {}
     biases = {}
     previous_layer_size = num_features
@@ -84,19 +84,16 @@ def neural_network_train_tfrecord(total_dataset_files, hidden_array, model_dir, 
 
 
         writer = tf.summary.FileWriter(model_dir, graph=tf.get_default_graph())
-
-        for epoch in range(1):
-            count = 0
-            print("Epoch: ",epoch)
-            sess.run(iterator.initializer)
-            while True:
-                try:
-                    u= sess.run([updates], feed_dict={keep_prob: 0.5})
-                    print(count)
-                    count+=1
-                    save_path = saver.save(sess, model_dir)
-                except tf.errors.OutOfRangeError:
-                    break
+        count = 0
+        sess.run(iterator.initializer)
+        while True:
+            try:
+                u= sess.run([updates])
+                print(count)
+                count+=1
+                save_path = saver.save(sess, model_dir)
+            except tf.errors.OutOfRangeError:
+                break
 
 
 
