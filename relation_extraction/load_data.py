@@ -450,6 +450,7 @@ def build_dictionaries_from_directory(directory_folder,entity_a,entity_b, entity
 def build_instances_from_directory(directory_folder, entity_a, entity_b, dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary,
                                    distant_interactions, reverse_distant_interactions, key_order):
     total_dataset= []
+    os.mkdir(directory_folder+'_tf_record')
     for path, subdirs, files in os.walk(directory_folder):
         for name in files:
             if name.endswith('.txt'):
@@ -469,8 +470,8 @@ def build_instances_from_directory(directory_folder, entity_a, entity_b, dep_dic
                 labels = np.array(y)
                 #print(labels)
 
-                tfrecord_filename = directory_folder +'/'+ name.replace('.txt','.tfrecord')
+                tfrecord_filename = name.replace('.txt','.tfrecord')
 
-                total_dataset.append(np_to_tfrecord(features,labels,tfrecord_filename))
+                total_dataset.append(np_to_tfrecord(features,labels,directory_folder +'_tf_record/'+ tfrecord_filename))
 
     return total_dataset
