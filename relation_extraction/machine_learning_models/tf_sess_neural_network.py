@@ -44,8 +44,8 @@ def neural_network_train_tfrecord(total_dataset_files, hidden_array, model_dir, 
     dataset = dataset.map(lambda example: tf.parse_single_example(
       example,
       features={
-        'x': tf.FixedLenSequenceFeature([num_features], tf.float32,allow_missing=True, default_value=0),
-        'y': tf.FixedLenSequenceFeature([num_labels], tf.float32,allow_missing=True, default_value=0)
+        'x': tf.FixedLenFeature([num_features], tf.float32,allow_missing=True, default_value=0),
+        'y': tf.FixedLenFeature([num_labels], tf.float32,allow_missing=True, default_value=0)
         }))
 
     dataset = dataset.shuffle(250)
