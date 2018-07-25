@@ -24,17 +24,22 @@ def np_to_tfrecord(features,labels,tfresult_file):
     #print(features.shape[0])
     for i in range(features.shape[0]):
         x = features[i]
+        x= np.array(x)
+        x=x.tobytes()
+        #print(x.shape)
         y = labels[i]
-
+        y = np.array(y)
+        y = y.tobytes()
 
         feature_dict = {}
-        feature_dict['x'] = tf.train.Feature(float_list=tf.train.FloatList(value=x.flatten()))
-        feature_dict['y'] = tf.train.Feature(float_list=tf.train.FloatList(value=y.flatten()))
+        feature_dict['x'] = tf.train.Feature(bytes_list=tf.train.BytesList(value=[x]))
+        feature_dict['y'] = tf.train.Feature(bytes_list=tf.train.BytesList(value=[y]))
         #print(feature_dict['x'])
 
 
         example = tf.train.Example(features=tf.train.Features(feature=feature_dict))
         serialized=example.SerializeToString()
+        #print(serialized)
         writer.write(serialized)
     writer.close()
 
@@ -450,7 +455,8 @@ def build_dictionaries_from_directory(directory_folder,entity_a,entity_b, entity
 def build_instances_from_directory(directory_folder, entity_a, entity_b, dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary,
                                    distant_interactions, reverse_distant_interactions, key_order):
     total_dataset= []
-    os.mkdir(directory_folder+'_tf_record')
+    if os.path.isdir(directory_folder+'_tf_record') == False:
+        os.mkdir(directory_folder+'_tf_record')
     for path, subdirs, files in os.walk(directory_folder):
         for name in files:
             if name.endswith('.txt'):
@@ -466,8 +472,12 @@ def build_instances_from_directory(directory_folder, entity_a, entity_b, dep_dic
                     X.append(ci.features)
                     y.append(ci.label)
                 features = np.array(X)
+                #features = X
+                #print(features)
                 #print(features)
                 labels = np.array(y)
+                #labels = y
+                #print(labels)
                 #print(labels)
 
                 tfrecord_filename = name.replace('.txt','.tfrecord')

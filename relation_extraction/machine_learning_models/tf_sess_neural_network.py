@@ -6,6 +6,22 @@ from sklearn import metrics
 seed(10)
 tf.set_random_seed(10)
 
+def parse(serialized_example):
+  features = tf.parse_single_example(
+    serialized_example,
+    features ={
+      "x": tf.FixedLenFeature([], tf.string, default_value=""),
+      "y": tf.FixedLenFeature([], tf.string, default_value="")
+    })
+
+  feat = tf.decode_raw(features['x'], tf.int64)
+  label = tf.decode_raw(features['y'], tf.int64)
+
+  feat = tf.cast(feat,dtype=tf.float32)
+  label = tf.cast(label,dtype=tf.float32)
+
+  return feat, label
+
 def feed_forward(input_tensor, num_hidden_layers, weights, biases,keep_prob):
     """Performs feed forward portion of neural network training"""
     hidden_mult = {}
@@ -41,21 +57,13 @@ def neural_network_train_tfrecord(total_dataset_files, hidden_array, model_dir, 
     num_hidden_layers = len(hidden_array)
     #build dataset
     dataset = tf.data.TFRecordDataset(total_dataset_files)
-    dataset = dataset.map(lambda example: tf.parse_single_example(
-      example,
-      features={
-        #'x': tf.FixedLenSequenceFeature([num_features], tf.float32,allow_missing=True, default_value=0),
-        #'y': tf.FixedLenSequenceFeature([num_labels], tf.float32,allow_missing=True, default_value=0)
-        'x': tf.FixedLenFeature([num_features], tf.float32,  default_value=0),
-        'y': tf.FixedLenFeature([num_labels], tf.float32, default_value=0)
-        }))
-
+    dataset = dataset.map(parse)
     dataset = dataset.shuffle(250)
     dataset = dataset.repeat(10)
-    dataset = dataset.batch(500)
+    dataset = dataset.batch(1)
     iterator = dataset.make_initializable_iterator()
 
-    training_example = iterator.get_next()
+    training_features, training_labels = iterator.get_next()
 
     #keep_prob = tf.placeholder(tf.float32, name='keep_prob')
     keep_prob = tf.constant(0.5)
@@ -72,12 +80,12 @@ def neural_network_train_tfrecord(total_dataset_files, hidden_array, model_dir, 
     biases['out'] = tf.Variable(tf.random_normal([num_labels], stddev=0.1), name='out_bias')
 
     #with tf.device("/gpu:0"):
-    yhat = feed_forward(training_example['x'], num_hidden_layers, weights, biases, keep_prob)
+    yhat = feed_forward(training_features, num_hidden_layers, weights, biases, keep_prob)
     prob_yhat = tf.nn.sigmoid(yhat, name='predict_prob')
     class_yhat = tf.to_int32(prob_yhat > 0.5, name='class_predict')
 
     #with tf.device("/gpu:0"):
-    cost = tf.nn.sigmoid_cross_entropy_with_logits(labels=training_example['y'], logits=yhat)
+    cost = tf.nn.sigmoid_cross_entropy_with_logits(labels=training_labels, logits=yhat)
     updates = tf.train.GradientDescentOptimizer(0.01).minimize(cost)
 
     saver = tf.train.Saver()
@@ -100,9 +108,7 @@ def neural_network_train_tfrecord(total_dataset_files, hidden_array, model_dir, 
                 break
 
 
-
-
-    return save_path
+    return True
 
 def neural_network_train(train_X,train_y,test_X,test_y,hidden_array,model_dir,key_order):
     num_features = train_X.shape[1]
