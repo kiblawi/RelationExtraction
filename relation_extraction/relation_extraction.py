@@ -126,10 +126,10 @@ def distant_train_large_data(model_out, abstract_folder, directional_distant_dir
 
     hidden_array = [256]
     print(total_dataset_files)
-    trained_model_path = snn.neural_network_train_tfrecord(total_dataset_files, hidden_array, model_out + '/', num_features, key_order)
+    #trained_model_path = snn.neural_network_train_tfrecord(total_dataset_files, hidden_array, model_out + '/', num_features, key_order)
 
 
-    return trained_model_path
+    return True
 
 
 def distant_train(model_out, abstract_folder, directional_distant_directory, symmetric_distant_directory,
