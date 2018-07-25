@@ -48,7 +48,7 @@ def neural_network_train_tfrecord(total_dataset_files, hidden_array, model_dir, 
         'y': tf.FixedLenSequenceFeature([num_labels], tf.float32,allow_missing=True, default_value=0)
         }))
 
-    dataset = dataset.shuffle()
+    dataset = dataset.shuffle(250)
     dataset = dataset.repeat(10)
     dataset = dataset.batch(500)
     iterator = dataset.make_initializable_iterator()
