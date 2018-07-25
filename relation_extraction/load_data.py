@@ -24,11 +24,11 @@ def np_to_tfrecord(features,labels,tfresult_file):
     #print(features.shape[0])
     for i in range(features.shape[0]):
         x = features[i]
-        x= np.array(x)
+        x= np.array(x,dtype='int64')
         x=x.tobytes()
         #print(x.shape)
         y = labels[i]
-        y = np.array(y)
+        y = np.array(y,dtype='int64')
         y = y.tobytes()
 
         feature_dict = {}
