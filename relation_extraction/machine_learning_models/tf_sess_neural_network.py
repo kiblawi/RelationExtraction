@@ -52,15 +52,16 @@ def feed_forward(input_tensor, num_hidden_layers, weights, biases,keep_prob):
 
 def neural_network_train_tfrecord(total_dataset_files, hidden_array, model_dir, num_features, key_order):
     tf.reset_default_graph()
+    num_epochs=250
     num_labels = len(key_order)
     print(num_features)
     num_hidden_layers = len(hidden_array)
     #build dataset
     dataset = tf.data.TFRecordDataset(total_dataset_files)
     dataset = dataset.map(parse)
-    dataset = dataset.shuffle(250)
-    dataset = dataset.repeat(10)
-    dataset = dataset.batch(1)
+    dataset = dataset.shuffle(10000)
+    #dataset = dataset.repeat(10)
+    dataset = dataset.batch(500)
     iterator = dataset.make_initializable_iterator()
 
     training_features, training_labels = iterator.get_next()
@@ -90,25 +91,23 @@ def neural_network_train_tfrecord(total_dataset_files, hidden_array, model_dir, 
 
     saver = tf.train.Saver()
     # Run SGD
+    save_path=None
     with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
         init = tf.global_variables_initializer()
         sess.run(init)
-
-
         writer = tf.summary.FileWriter(model_dir, graph=tf.get_default_graph())
-        count = 0
-        sess.run(iterator.initializer)
-        while True:
-            try:
-                u= sess.run([updates])
-                print(count)
-                count+=1
-                save_path = saver.save(sess, model_dir)
-            except tf.errors.OutOfRangeError:
-                break
+        for epoch in range(num_epochs):
+            print("epoch: ",epoch)
+            sess.run(iterator.initializer)
+            while True:
+                try:
+                    u=sess.run([updates])
+                    save_path = saver.save(sess,model_dir)
+                except tf.errors.OutOfRangeError:
+                    break
 
 
-    return True
+    return save_path
 
 def neural_network_train(train_X,train_y,test_X,test_y,hidden_array,model_dir,key_order):
     num_features = train_X.shape[1]
