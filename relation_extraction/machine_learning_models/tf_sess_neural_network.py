@@ -14,8 +14,8 @@ def parse(serialized_example):
       "y": tf.FixedLenFeature([], tf.string, default_value="")
     })
 
-  feat = tf.decode_raw(features['x'], tf.int64)
-  label = tf.decode_raw(features['y'], tf.int64)
+  feat = tf.decode_raw(features['x'], tf.int8)
+  label = tf.decode_raw(features['y'], tf.int8)
 
   feat = tf.cast(feat,dtype=tf.float32)
   label = tf.cast(label,dtype=tf.float32)
