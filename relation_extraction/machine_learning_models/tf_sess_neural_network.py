@@ -61,7 +61,7 @@ def neural_network_train_tfrecord(total_dataset_files, hidden_array, model_dir, 
     dataset = dataset.map(parse)
     dataset = dataset.shuffle(10000)
     #dataset = dataset.repeat(10)
-    dataset = dataset.batch(500)
+    dataset = dataset.batch(512)
     iterator = dataset.make_initializable_iterator()
 
     training_features, training_labels = iterator.get_next()
@@ -97,12 +97,15 @@ def neural_network_train_tfrecord(total_dataset_files, hidden_array, model_dir, 
         sess.run(init)
         writer = tf.summary.FileWriter(model_dir, graph=tf.get_default_graph())
         for epoch in range(num_epochs):
+            count = 0
             print("epoch: ",epoch)
             sess.run(iterator.initializer)
             while True:
                 try:
                     u=sess.run([updates])
                     save_path = saver.save(sess,model_dir)
+                    print(count)
+                    count+=1
                 except tf.errors.OutOfRangeError:
                     break
 
