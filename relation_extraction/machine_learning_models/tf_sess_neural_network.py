@@ -61,7 +61,7 @@ def neural_network_train_tfrecord(total_dataset_files, hidden_array, model_dir, 
     dataset = dataset.map(parse)
     dataset = dataset.shuffle(10000)
     #dataset = dataset.repeat(10)
-    dataset = dataset.batch(512)
+    dataset = dataset.batch(1024)
     iterator = dataset.make_initializable_iterator()
 
     training_features, training_labels = iterator.get_next()
