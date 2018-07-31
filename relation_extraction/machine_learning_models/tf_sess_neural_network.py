@@ -50,50 +50,7 @@ def feed_forward(input_tensor, num_hidden_layers, weights, biases,keep_prob):
 
     return out_layer_bias_addition
 
-def neural_network_test_tfrecord(total_dataset_files,model_file):
-    print(model_file)
-    c = 0
-    positive = 0
-    labels = []
-    for fn in total_dataset_files:
-        for record in tf.python_io.tf_record_iterator(fn):
-            c += 1
-            result = tf.train.Example.FromString(record)
-            if result.features.feature['y'].bytes_list.value != ['\x00']:
-                labels.append(1)
-                positive += 1
-            else:
-                labels.append(0)
-    labels = np.array(labels)
-    print("count: ", c)
-    print("positives: ", positive)
 
-    dataset = tf.data.TFRecordDataset(total_dataset_files)
-    dataset = dataset.map(parse)
-    dataset = dataset.batch(1)
-
-    total_predicted_prob = np.array([])
-
-    with tf.Session() as sess:
-        restored_model = tf.train.import_meta_graph(model_file + '.meta')
-        restored_model.restore(sess,model_file)
-        graph =tf.get_default_graph()
-        iterator_handle = graph.get_tensor_by_name('iterator_handle:0')
-        iterator = dataset.make_one_shot_iterator()
-        new_handle = sess.run(iterator.string_handle())
-        keep_prob_tensor = graph.get_tensor_by_name('keep_prob:0')
-        predict_tensor = graph.get_tensor_by_name('class_predict:0')
-        predict_prob = graph.get_tensor_by_name('predict_prob:0')
-        while True:
-            try:
-                predicted_val, predict_class = sess.run([predict_prob,predict_tensor],feed_dict={iterator_handle: new_handle,keep_prob_tensor:1.0})
-                total_predicted_prob = np.append(total_predicted_prob,predicted_val[0])
-            except tf.errors.OutOfRangeError:
-                break
-        #test_accuracy = metrics.accuracy_score(y_true=test_labels, y_pred=predict_class)
-
-    print(total_predicted_prob)
-    return total_predicted_prob, labels
 
 def neural_network_train_tfrecord(total_dataset_files, hidden_array, model_dir, num_features, key_order):
     c = 0
@@ -116,7 +73,7 @@ def neural_network_train_tfrecord(total_dataset_files, hidden_array, model_dir, 
     dataset = dataset.map(parse)
     dataset = dataset.shuffle(10000)
     #dataset = dataset.repeat(10)
-    dataset = dataset.batch(526)
+    dataset = dataset.batch(512)
 
     iterator_handle = tf.placeholder(tf.string, shape=[],name='iterator_handle')
     #tf.add_to_collection('iterator_handle',iterator_handle)
@@ -127,8 +84,6 @@ def neural_network_train_tfrecord(total_dataset_files, hidden_array, model_dir, 
         dataset.output_shapes)
     train_iter = dataset.make_initializable_iterator()
     training_features, training_labels = iterator.get_next()
-
-
 
 
     keep_prob = tf.placeholder(tf.float32, name='keep_prob')
@@ -256,8 +211,6 @@ def neural_network_train(train_X,train_y,test_X,test_y,hidden_array,model_dir,ke
     return save_path
 
 def neural_network_test(test_features,test_labels,model_file):
-
-
     with tf.Session() as sess:
         restored_model = tf.train.import_meta_graph(model_file + '.meta')
         restored_model.restore(sess,model_file)
@@ -272,6 +225,51 @@ def neural_network_test(test_features,test_labels,model_file):
         test_accuracy = metrics.accuracy_score(y_true=test_labels, y_pred=predict_class)
         print(test_accuracy)
     return predicted_val
+
+def neural_network_test_tfrecord(total_dataset_files,model_file):
+    print(model_file)
+    c = 0
+    positive = 0
+    labels = []
+    for fn in total_dataset_files:
+        for record in tf.python_io.tf_record_iterator(fn):
+            c += 1
+            result = tf.train.Example.FromString(record)
+            if result.features.feature['y'].bytes_list.value != ['\x00']:
+                labels.append(1)
+                positive += 1
+            else:
+                labels.append(0)
+    labels = np.array(labels)
+    print("count: ", c)
+    print("positives: ", positive)
+
+    dataset = tf.data.TFRecordDataset(total_dataset_files)
+    dataset = dataset.map(parse)
+    dataset = dataset.batch(1)
+
+    total_predicted_prob = np.array([])
+
+    with tf.Session() as sess:
+        restored_model = tf.train.import_meta_graph(model_file + '.meta')
+        restored_model.restore(sess,model_file)
+        graph =tf.get_default_graph()
+        iterator_handle = graph.get_tensor_by_name('iterator_handle:0')
+        iterator = dataset.make_one_shot_iterator()
+        new_handle = sess.run(iterator.string_handle())
+        keep_prob_tensor = graph.get_tensor_by_name('keep_prob:0')
+        predict_tensor = graph.get_tensor_by_name('class_predict:0')
+        predict_prob = graph.get_tensor_by_name('predict_prob:0')
+        while True:
+            try:
+                predicted_val, predict_class = sess.run([predict_prob,predict_tensor],feed_dict={iterator_handle: new_handle,keep_prob_tensor:1.0})
+                total_predicted_prob = np.append(total_predicted_prob,predicted_val[0])
+            except tf.errors.OutOfRangeError:
+                break
+        #test_accuracy = metrics.accuracy_score(y_true=test_labels, y_pred=predict_class)
+
+    print(total_predicted_prob)
+    return total_predicted_prob, labels
 
 def neural_network_predict(predict_features,model_file):
 
