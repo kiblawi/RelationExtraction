@@ -472,16 +472,33 @@ def build_instances_from_directory(directory_folder, entity_a, entity_b, dep_dic
                     X.append(ci.features)
                     y.append(ci.label)
                 features = np.array(X)
-                #features = X
-                #print(features)
-                #print(features)
                 labels = np.array(y)
-                #labels = y
-                #print(labels)
-                #print(labels)
+
 
                 tfrecord_filename = name.replace('.txt','.tfrecord')
 
                 total_dataset.append(np_to_tfrecord(features,labels,directory_folder +'_tf_record/'+ tfrecord_filename))
 
     return total_dataset
+
+def build_test_instances_from_directory(directory_folder, entity_a, entity_b, dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary,
+                                   distant_interactions, reverse_distant_interactions, key_order):
+
+    total_features = []
+    total_labels = []
+    total_instances = []
+    for path, subdirs, files in os.walk(directory_folder):
+        for name in files:
+            if name.endswith('.txt'):
+                #print(name)
+                xmlpath = os.path.join(path, name)
+                test_sentences, pmids = load_xml(xmlpath, entity_a, entity_b)
+                candidate_instances = build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary,
+                            distant_interactions,reverse_distant_interactions, key_order, entity_1_list =  None, entity_2_list = None)
+
+                for ci in candidate_instances:
+                    total_instances.append(ci)
+                    total_features.append(ci.features)
+                    total_labels.append(ci.label)
+
+    return total_instances,total_features,total_labels

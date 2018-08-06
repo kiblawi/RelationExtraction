@@ -81,11 +81,7 @@ def parallel_train(model_out, abstract_folder, directional_distant_directory, sy
 
 def distant_test_large_data(model_out, abstract_folder, directional_distant_directory, symmetric_distant_directory,
                   distant_entity_a_col, distant_entity_b_col, distant_rel_col, entity_a, entity_b):
-    print(directional_distant_directory)
-    print(symmetric_distant_directory)
-    print(distant_entity_a_col)
-    print(distant_entity_b_col)
-    print(distant_rel_col)
+
     distant_interactions, reverse_distant_interactions = load_data.load_distant_directories(
         directional_distant_directory,
         symmetric_distant_directory,
@@ -101,33 +97,23 @@ def distant_test_large_data(model_out, abstract_folder, directional_distant_dire
             open(model_out + 'a.pickle', 'rb'))
     # load in sentences and try to get dictionaries built
     else:
-        dep_dictionary, \
-        dep_word_dictionary, \
-        dep_element_dictionary, \
-        between_word_dictionary = load_data.build_dictionaries_from_directory(abstract_folder, entity_a, entity_b)
-
-        pickle.dump([dep_dictionary, dep_word_dictionary, dep_element_dictionary, between_word_dictionary, key_order],
-                    open(model_out + 'a.pickle', 'wb'))
+        print('error')
 
     num_features = len(dep_dictionary) + len(dep_word_dictionary) + len(dep_element_dictionary) + len(
         between_word_dictionary)
     print(num_features)
 
-    total_dataset_files = []
-    for path, subdirs, files in os.walk(abstract_folder):
-        for name in files:
-            if name.endswith('.tfrecord'):
-                print(name)
-                total_dataset_files.append(abstract_folder + '/' + name)
-    print(total_dataset_files)
-    if len(total_dataset_files) == 0:
-        total_dataset_files = load_data.build_instances_from_directory(abstract_folder, entity_a, entity_b,
+
+    test_instances,test_features,test_labels  = load_data.build_test_instances_from_directory(abstract_folder, entity_a, entity_b,
                                                                        dep_dictionary, dep_word_dictionary,
                                                                        dep_element_dictionary, between_word_dictionary,
                                                                        distant_interactions,
                                                                        reverse_distant_interactions, key_order)
 
-    trained_model_path = snn.neural_network_test_tfrecord(total_dataset_files, model_out + '/')
+    test_labels = np.array(test_labels,dtype='float32')
+    test_features = np.array(test_features,dtype='float32')
+
+    trained_model_path = snn.neural_network_test_large(test_features,test_labels, model_out + '/')
 
 
 def distant_train_large_data(model_out, abstract_folder, directional_distant_directory, symmetric_distant_directory,
