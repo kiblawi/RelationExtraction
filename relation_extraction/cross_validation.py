@@ -18,8 +18,8 @@ def write_cv_output(filename, predicts, instances,key_order):
         file.write('PMID\tE1\tE2\tClASS_LABEL\tPROBABILITY\n')
         for q in range(predicts[:,k].size):
             instance_label = instances[q].label[k]
-            instance_start = instances[q].sentence.get_token(instances[q].start).normalized_ner
-            instance_end = instances[q].sentence.get_token(instances[q].end).normalized_ner
+            instance_start = instances[q].sentence.get_token(instances[q].start[0]).normalized_ner
+            instance_end = instances[q].sentence.get_token(instances[q].end[0]).normalized_ner
             labels.append(instance_label)
             file.write(str(instances[q].sentence.pmid) + '\t' + str(instance_start) + '\t' +str(instance_end) + '\t'+str(instance_label) + '\t' + str(predicts[q,k]) + '\n')
         #labels = np.array(labels)
