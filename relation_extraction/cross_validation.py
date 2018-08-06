@@ -18,8 +18,10 @@ def write_cv_output(filename, predicts, instances,key_order):
         file.write('PMID\tE1\tE2\tClASS_LABEL\tPROBABILITY\n')
         for q in range(predicts[:,k].size):
             instance_label = instances[q].label[k]
+            instance_start = instances[q].sentence.get_token(instances[q].start).normalized_ner
+            instance_end = instances[q].sentence.get_token(instances[q].end).normalized_ner
             labels.append(instance_label)
-            file.write(str(instances[q].sentence.pmid) + '\t' + str(instances[q].sentence.start_entity_id) + '\t' +str(instances[q].sentence.end_entity_id) + '\t'+str(instance_label) + '\t' + str(predicts[q,k]) + '\n')
+            file.write(str(instances[q].sentence.pmid) + '\t' + str(instance_start) + '\t' +str(instance_end) + '\t'+str(instance_label) + '\t' + str(predicts[q,k]) + '\n')
         #labels = np.array(labels)
         #precision, recall, _ = metrics.precision_recall_curve(y_true=labels,probas_pred=predicts[:, k])
         #file.write('PRECISION\tRECALL\n')
