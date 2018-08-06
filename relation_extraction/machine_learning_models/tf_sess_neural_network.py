@@ -273,6 +273,8 @@ def neural_network_test_tfrecord(total_dataset_files,model_file):
 
 def neural_network_test_large(features,labels,model_file):
 
+    print(features.size)
+    print(labels.size)
     dataset = tf.contrib.data.Dataset.from_tensor_slices((features, labels))
     dataset = dataset.batch(1024)
     total_predicted_prob = np.array([])
