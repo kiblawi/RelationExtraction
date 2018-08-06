@@ -99,8 +99,7 @@ def distant_test_large_data(model_out, abstract_folder, directional_distant_dire
     else:
         print('error')
 
-    num_features = len(dep_dictionary) + len(dep_word_dictionary) + len(dep_element_dictionary) + len(
-        between_word_dictionary)
+    num_features = len(dep_dictionary) + len(dep_word_dictionary) + len(dep_element_dictionary) + len(between_word_dictionary)
     print(num_features)
 
 
@@ -113,7 +112,10 @@ def distant_test_large_data(model_out, abstract_folder, directional_distant_dire
     test_labels = np.array(test_labels,dtype='float32')
     test_features = np.array(test_features,dtype='float32')
 
-    trained_model_path = snn.neural_network_test_large(test_features,test_labels, model_out + '/')
+    instance_predicts, predict_labels = snn.neural_network_test_large(test_features,test_labels, model_out + '/')
+    np.testing.assert_array_equal(test_labels,predict_labels)
+
+    cv.write_cv_output(model_out + '_test_predictions', instance_predicts, test_instances, key_order)
 
 
 def distant_train_large_data(model_out, abstract_folder, directional_distant_directory, symmetric_distant_directory,
