@@ -115,7 +115,7 @@ def distant_test_large_data(model_out, abstract_folder, directional_distant_dire
     test_features = np.array(test_features,dtype='float32')
 
     instance_predicts, predict_labels = snn.neural_network_test_large(test_features,test_labels, model_out + '/')
-    print(instance_predicts.size)
+    print(instance_predicts.shape)
     np.testing.assert_array_equal(test_labels,predict_labels)
 
     cv.write_cv_output(model_out + '_test_predictions', instance_predicts, test_instances, key_order)
