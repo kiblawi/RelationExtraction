@@ -292,6 +292,7 @@ def neural_network_test_large(features,labels,model_file):
         while True:
             try:
                 predicted_val, predict_class = sess.run([predict_prob,predict_tensor],feed_dict={iterator_handle: new_handle,keep_prob_tensor:1.0})
+                print(predicted_val)
                 total_predicted_prob = np.append(total_predicted_prob,predicted_val[0])
             except tf.errors.OutOfRangeError:
                 break
