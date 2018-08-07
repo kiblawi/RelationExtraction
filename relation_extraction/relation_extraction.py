@@ -118,7 +118,7 @@ def distant_test_large_data(model_out, abstract_folder, directional_distant_dire
     print(instance_predicts.shape)
     np.testing.assert_array_equal(test_labels,predict_labels)
 
-    cv.write_cv_output(model_out + '_test_predictions', instance_predicts, test_instances, key_order)
+    cv.write_cv_output(model_out + '_test_predictions', instance_predicts, predict_labels, test_instances, key_order)
 
 
 def distant_train_large_data(model_out, abstract_folder, directional_distant_directory, symmetric_distant_directory,

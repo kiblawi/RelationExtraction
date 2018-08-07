@@ -12,16 +12,16 @@ from sklearn import metrics
 def write_cv_output(filename, predicts,labels, instances,key_order):
     for k in range(len(key_order)):
         key = key_order[k]
-        labels = []
+        labels_list = []
         file = open(filename+'_'+key,'w')
         #file.write(key_order[k]+'\n')
         file.write('PMID\tE1\tE2\tClASS_LABEL\tPROBABILITY\n')
         for q in range(predicts[:,k].size):
-            instance_label = instances[q].label[k]
+            instance_label = labels[q,k]
             instance_start = instances[q].sentence.get_token(instances[q].start[0]).normalized_ner
             instance_end = instances[q].sentence.get_token(instances[q].end[0]).normalized_ner
-            labels.append(instance_label)
-            file.write(str(instances[q].sentence.pmid) + '\t' + str(instance_start) + '\t' +str(instance_end) + '\t'+str(labels[q,k]) + '\t' + str(predicts[q,k]) + '\n')
+            labels_list.append(instance_label)
+            file.write(str(instances[q].sentence.pmid) + '\t' + str(instance_start) + '\t' +str(instance_end) + '\t'+str(instance_label) + '\t' + str(predicts[q,k]) + '\n')
         #labels = np.array(labels)
         #precision, recall, _ = metrics.precision_recall_curve(y_true=labels,probas_pred=predicts[:, k])
         #file.write('PRECISION\tRECALL\n')
