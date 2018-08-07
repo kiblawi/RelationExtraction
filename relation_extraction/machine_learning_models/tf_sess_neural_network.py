@@ -278,6 +278,7 @@ def neural_network_test_large(features,labels,model_file):
     dataset = tf.contrib.data.Dataset.from_tensor_slices((features, labels))
     dataset = dataset.batch(1024)
     total_predicted_prob = np.array([])
+    total_labels = np.array([])
     feature_batch, label_batch = tf.contrib.data.get_single_element(dataset)
 
     with tf.Session() as sess:
@@ -298,6 +299,7 @@ def neural_network_test_large(features,labels,model_file):
                 print(l_batch)
                 print(predicted_val)
                 total_predicted_prob = np.append(total_predicted_prob,predicted_val)
+                total_labels = np.append(total_labels,l_batch)
             except tf.errors.OutOfRangeError:
                 break
         #test_accuracy = metrics.accuracy_score(y_true=test_labels, y_pred=predict_class)
