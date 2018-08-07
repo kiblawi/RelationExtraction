@@ -122,7 +122,7 @@ def distant_test_large_data(model_out, abstract_folder, directional_distant_dire
 
 
 def distant_train_large_data(model_out, abstract_folder, directional_distant_directory, symmetric_distant_directory,
-                  distant_entity_a_col, distant_entity_b_col, distant_rel_col, entity_a, entity_b):
+                  distant_entity_a_col, distant_entity_b_col, distant_rel_col, entity_a, entity_b,testing_abstracts):
 
     #get distant_relations from external knowledge base file
     print(directional_distant_directory)
@@ -168,7 +168,31 @@ def distant_train_large_data(model_out, abstract_folder, directional_distant_dir
 
     hidden_array = []
     print(total_dataset_files)
-    trained_model_path = snn.neural_network_train_tfrecord(total_dataset_files, hidden_array, model_out + '/', num_features, key_order)
+
+    test_features = None
+    test_labels = None
+
+    if os.path.isdir(testing_abstracts):
+        test_instances, test_features, test_labels = load_data.build_test_instances_from_directory(testing_abstracts,
+                                                                                                   entity_a, entity_b,
+                                                                                                   dep_dictionary,
+                                                                                                   dep_word_dictionary,
+                                                                                                   dep_element_dictionary,
+                                                                                                   between_word_dictionary,
+                                                                                                   distant_interactions,
+                                                                                                   reverse_distant_interactions,
+                                                                                                   key_order)
+        print('test_instances')
+        print(len(test_instances))
+
+        test_labels = np.array(test_labels, dtype='float32')
+        test_features = np.array(test_features, dtype='float32')
+
+
+
+
+
+    trained_model_path = snn.neural_network_train_tfrecord(total_dataset_files, hidden_array, model_out + '/', num_features, key_order,test_features,test_labels)
 
 
     return trained_model_path
@@ -274,6 +298,7 @@ def main():
         entity_a = sys.argv[9].upper()  # entity_a
         print(entity_a)
         entity_b = sys.argv[10].upper()  # entity_b
+        testing_abstracts =sys.argv[11]
 
         #symmetric = sys.argv[10].upper() in ['TRUE', 'Y', 'YES']  # is the relation symmetrical (i.e. binds)
 
@@ -281,7 +306,7 @@ def main():
             trained_model_path = distant_train_large_data(model_out, abstract_folder, directional_distant_directory,
                                                symmetric_distant_directory,
                                                distant_entity_a_col, distant_entity_b_col, distant_rel_col, entity_a,
-                                               entity_b)
+                                               entity_b,testing_abstracts)
         else:
             trained_model_path = distant_train(model_out, abstract_folder, directional_distant_directory,symmetric_distant_directory,
                       distant_entity_a_col, distant_entity_b_col, distant_rel_col, entity_a,entity_b)

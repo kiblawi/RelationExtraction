@@ -83,8 +83,17 @@ def neural_network_train_tfrecord(train_dataset_files, hidden_array, model_dir, 
         iterator_handle,
         dataset.output_types,
         dataset.output_shapes)
-    train_iter = dataset.make_initializable_iterator()
     training_features, training_labels = iterator.get_next()
+
+    train_iter = dataset.make_initializable_iterator()
+
+
+    if test_features is not None and test_labels is not None:
+        test_dataset = tf.data.Dataset.from_tensor_slices((test_features, test_labels))
+        test_dataset = test_dataset.batch(1024)
+        test_iter = test_dataset.make_initializable_iterator()
+
+
 
 
     keep_prob = tf.placeholder(tf.float32, name='keep_prob')
@@ -134,7 +143,7 @@ def neural_network_train_tfrecord(train_dataset_files, hidden_array, model_dir, 
             while True:
                 try:
                     batch_train_predict,batch_train_labels = sess.run([class_yhat,training_labels],feed_dict={iterator_handle:train_handle,keep_prob:1.0})
-                    train_y_predict_total = np.append(train_y_predict_total,batch_train_labels)
+                    train_y_predict_total = np.append(train_y_predict_total,batch_train_predict)
                     train_y_label_total = np.append(train_y_label_total,batch_train_labels)
                 except tf.errors.OutOfRangeError:
                     break
@@ -144,6 +153,23 @@ def neural_network_train_tfrecord(train_dataset_files, hidden_array, model_dir, 
             print("Epoch = %d, train accuracy = %.2f%%"
                   % (epoch, 100. * train_accuracy))
 
+            if test_features is not None and test_labels is not None:
+                test_handle = sess.run(test_iter.string_handle())
+                sess.run(test_iter.initializer)
+                test_y_predict_total = np.array([])
+                test_y_label_total = np.array([])
+                while True:
+                    try:
+                        batch_test_predict,batch_test_labels = sess.run([class_yhat,training_labels],feed_dict={iterator_handle:test_handle,keep_prob:1.0})
+                        test_y_predict_total = np.append(test_y_predict_total,batch_test_predict)
+                        test_y_label_total = np.append(test_y_label_total,batch_test_labels)
+                    except tf.errors.OutOfRangeError:
+                        break
+                test_y_predict_total = test_y_predict_total.reshape(test_labels.shape)
+                test_y_label_total = test_y_label_total.reshape(test_labels.shape)
+                test_accuracy = metrics.accuracy_score(y_true=test_y_label_total, y_pred=test_y_predict_total)
+                print("Epoch = %d, test accuracy = %.2f%%"
+                      % (epoch, 100. * test_accuracy))
 
     return save_path
 
