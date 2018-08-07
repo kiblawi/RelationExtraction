@@ -278,37 +278,25 @@ def neural_network_test_large(features,labels,model_file):
     dataset = tf.contrib.data.Dataset.from_tensor_slices((features, labels))
     dataset = dataset.batch(1024)
     total_predicted_prob = np.array([])
-    dataset2 = tf.contrib.data.Dataset.from_tensor_slices((features, labels))
-    dataset2 = dataset2.batch(1024)
-
-
 
     with tf.Session() as sess:
         restored_model = tf.train.import_meta_graph(model_file + '.meta')
         restored_model.restore(sess,model_file)
         graph =tf.get_default_graph()
         iterator_handle = graph.get_tensor_by_name('iterator_handle:0')
-        validate_iterator = tf.data.Iterator.from_string_handle(iterator_handle, dataset2.output_types, dataset2.output_shapes)
-        batch_features, batch_labels = validate_iterator.get_next()
         test_iterator = dataset.make_one_shot_iterator()
-        val_iterator = dataset2.make_one_shot_iterator()
         new_handle = sess.run(test_iterator.string_handle())
-        val_handle = sess.run(val_iterator.string_handle())
         keep_prob_tensor = graph.get_tensor_by_name('keep_prob:0')
         predict_tensor = graph.get_tensor_by_name('class_predict:0')
         predict_prob = graph.get_tensor_by_name('predict_prob:0')
 
         while True:
             try:
-                b_feature,b_labels = sess.run([batch_features,batch_labels],feed_dict={iterator_handle:val_handle})
-                print(b_feature)
-                print(b_labels)
                 predicted_val= sess.run([predict_prob],feed_dict={iterator_handle: new_handle,keep_prob_tensor:1.0})
                 print(predicted_val)
                 total_predicted_prob = np.append(total_predicted_prob,predicted_val)
             except tf.errors.OutOfRangeError:
                 break
-        #test_accuracy = metrics.accuracy_score(y_true=test_labels, y_pred=predict_class)
 
     print(total_predicted_prob.shape)
     total_predicted_prob = total_predicted_prob.reshape(labels.shape)
