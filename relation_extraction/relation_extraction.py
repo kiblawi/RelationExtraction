@@ -166,7 +166,7 @@ def distant_train_large_data(model_out, abstract_folder, directional_distant_dir
                                    dep_element_dictionary, between_word_dictionary,
                                    distant_interactions, reverse_distant_interactions, key_order)
 
-    hidden_array = [256]
+    hidden_array = []
     print(total_dataset_files)
     trained_model_path = snn.neural_network_train_tfrecord(total_dataset_files, hidden_array, model_out + '/', num_features, key_order)
 

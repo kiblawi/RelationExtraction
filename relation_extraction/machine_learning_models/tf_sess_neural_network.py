@@ -52,10 +52,10 @@ def feed_forward(input_tensor, num_hidden_layers, weights, biases,keep_prob):
 
 
 
-def neural_network_train_tfrecord(total_dataset_files, hidden_array, model_dir, num_features, key_order):
+def neural_network_train_tfrecord(train_dataset_files, hidden_array, model_dir, num_features, key_order,test_features=None,test_labels=None):
     c = 0
     positive = 0
-    for fn in total_dataset_files:
+    for fn in train_dataset_files:
         for record in tf.python_io.tf_record_iterator(fn):
             c += 1
             result = tf.train.Example.FromString(record)
@@ -69,11 +69,12 @@ def neural_network_train_tfrecord(total_dataset_files, hidden_array, model_dir, 
     print("number_of_features: ",num_features)
     num_hidden_layers = len(hidden_array)
     #build dataset
-    dataset = tf.data.TFRecordDataset(total_dataset_files)
+    dataset = tf.data.TFRecordDataset(train_dataset_files)
     dataset = dataset.map(parse)
     dataset = dataset.shuffle(10000)
     #dataset = dataset.repeat(10)
     dataset = dataset.batch(512)
+
 
     iterator_handle = tf.placeholder(tf.string, shape=[],name='iterator_handle')
     #tf.add_to_collection('iterator_handle',iterator_handle)
@@ -126,6 +127,23 @@ def neural_network_train_tfrecord(total_dataset_files, hidden_array, model_dir, 
                     save_path = saver.save(sess,model_dir)
                 except tf.errors.OutOfRangeError:
                     break
+            train_handle = sess.run(train_iter.string_handle())
+            sess.run(train_iter.initializer)
+            train_y_predict_total = np.array([])
+            train_y_label_total = np.array([])
+            while True:
+                try:
+                    batch_train_predict,batch_train_labels = sess.run([class_yhat,training_labels],feed_dict={iterator_handle:train_handle,keep_prob:1.0})
+                    train_y_predict_total = np.append(train_y_predict_total,batch_train_labels)
+                    train_y_label_total = np.append(train_y_label_total,batch_train_labels)
+                except tf.errors.OutOfRangeError:
+                    break
+            train_y_predict_total = train_y_predict_total.reshape((c,1))
+            train_y_label_total = train_y_label_total.reshape((c,1))
+            train_accuracy = metrics.accuracy_score(y_true=train_y_label_total, y_pred=train_y_predict_total)
+            print("Epoch = %d, train accuracy = %.2f%%"
+                  % (epoch, 100. * train_accuracy))
+
 
     return save_path
 
