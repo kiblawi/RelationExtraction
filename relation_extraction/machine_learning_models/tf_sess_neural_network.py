@@ -275,7 +275,7 @@ def neural_network_test_large(features,labels,model_file):
 
     print(features.shape)
     print(labels.shape)
-    dataset = tf.contrib.data.Dataset.from_tensor_slices((features, labels))
+    dataset = tf.data.Dataset.from_tensor_slices((features, labels))
     dataset = dataset.batch(1024)
     total_predicted_prob = np.array([])
 
@@ -288,13 +288,17 @@ def neural_network_test_large(features,labels,model_file):
         iterator_handle = graph.get_tensor_by_name('iterator_handle:0')
         test_iterator = dataset.make_one_shot_iterator()
         new_handle = sess.run(test_iterator.string_handle())
+        batch_features_tensor = graph.get_tensor_by_name('IteratorGetNext:0')
+        batch_labels_tensor = graph.get_tensor_by_name('IteratorGetNext:1')
         keep_prob_tensor = graph.get_tensor_by_name('keep_prob:0')
         predict_tensor = graph.get_tensor_by_name('class_predict:0')
         predict_prob = graph.get_tensor_by_name('predict_prob:0')
 
         while True:
             try:
-                predicted_val= sess.run([predict_prob],feed_dict={iterator_handle: new_handle,keep_prob_tensor:1.0})
+                predicted_val,batch_features,batch_labels= sess.run([predict_prob,batch_features_tensor,batch_labels_tensor],feed_dict={iterator_handle: new_handle,keep_prob_tensor:1.0})
+                print(batch_features)
+                print(batch_labels)
                 print(predicted_val)
                 total_predicted_prob = np.append(total_predicted_prob,predicted_val)
             except tf.errors.OutOfRangeError:
