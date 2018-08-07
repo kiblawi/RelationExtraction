@@ -143,12 +143,12 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
             candidate_instances.append(reverse_train_instance)
 
 
-    data, count, dep_path_word_dictionary, reversed_dictionary = build_dataset(path_word_vocabulary,500)
-    dep_data, dep_count, dep_dictionary, dep_reversed_dictionary = build_dataset(dep_type_vocabulary,500)
+    data, count, dep_path_word_dictionary, reversed_dictionary = build_dataset(path_word_vocabulary,100)
+    dep_data, dep_count, dep_dictionary, dep_reversed_dictionary = build_dataset(dep_type_vocabulary,100)
     dep_element_data, dep_element_count, dep_element_dictionary, dep_element_reversed_dictionary = build_dataset(
-        dep_type_word_elements_vocabulary,500)
+        dep_type_word_elements_vocabulary,100)
     between_data, between_count, between_word_dictionary, between_reversed_dictionary = build_dataset(
-        words_between_entities_vocabulary,500)
+        words_between_entities_vocabulary,100)
 
 
     print(dep_dictionary)
