@@ -306,7 +306,7 @@ def neural_network_test_large(features,labels,model_file):
 
     print(total_predicted_prob.shape)
     total_predicted_prob = total_predicted_prob.reshape(labels.shape)
-    return total_predicted_prob, labels
+    return total_predicted_prob, total_labels
 
 
 def neural_network_predict(predict_features,model_file):
