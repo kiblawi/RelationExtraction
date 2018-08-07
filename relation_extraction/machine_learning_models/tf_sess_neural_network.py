@@ -278,8 +278,7 @@ def neural_network_test_large(features,labels,model_file):
     dataset = tf.contrib.data.Dataset.from_tensor_slices((features, labels))
     dataset = dataset.batch(1024)
     total_predicted_prob = np.array([])
-    total_labels = np.array([])
-    feature_batch, label_batch = tf.contrib.data.get_single_element(dataset)
+
 
     with tf.Session() as sess:
         restored_model = tf.train.import_meta_graph(model_file + '.meta')
@@ -291,24 +290,18 @@ def neural_network_test_large(features,labels,model_file):
         keep_prob_tensor = graph.get_tensor_by_name('keep_prob:0')
         predict_tensor = graph.get_tensor_by_name('class_predict:0')
         predict_prob = graph.get_tensor_by_name('predict_prob:0')
-
         while True:
             try:
-                predicted_val, predict_class,f_batch, l_batch= sess.run([predict_prob,predict_tensor,feature_batch,label_batch],feed_dict={iterator_handle: new_handle,keep_prob_tensor:1.0})
-                print(f_batch)
-                print(l_batch)
+                predicted_val, predict_class= sess.run([predict_prob,predict_tensor],feed_dict={iterator_handle: new_handle,keep_prob_tensor:1.0})
                 print(predicted_val)
                 total_predicted_prob = np.append(total_predicted_prob,predicted_val)
-                total_labels = np.append(total_labels,l_batch)
             except tf.errors.OutOfRangeError:
                 break
         #test_accuracy = metrics.accuracy_score(y_true=test_labels, y_pred=predict_class)
 
     print(total_predicted_prob.shape)
-    print(total_labels.shape)
     total_predicted_prob = total_predicted_prob.reshape(labels.shape)
-    total_labels = total_labels.reshape(labels.shape)
-    return total_predicted_prob, total_labels
+    return total_predicted_prob, labels
 
 
 def neural_network_predict(predict_features,model_file):
