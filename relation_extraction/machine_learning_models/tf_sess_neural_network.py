@@ -282,7 +282,9 @@ def neural_network_test_large(features,labels,model_file):
     with tf.Session() as sess:
         restored_model = tf.train.import_meta_graph(model_file + '.meta')
         restored_model.restore(sess,model_file)
-        graph =tf.get_default_graph()
+        graph = tf.get_default_graph()
+        tensor_names = [t.name for op in graph.get_operations() for t in op.values()]
+        print(tensor_names)
         iterator_handle = graph.get_tensor_by_name('iterator_handle:0')
         test_iterator = dataset.make_one_shot_iterator()
         new_handle = sess.run(test_iterator.string_handle())
