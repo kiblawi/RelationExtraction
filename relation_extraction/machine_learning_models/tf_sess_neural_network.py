@@ -305,7 +305,9 @@ def neural_network_test_large(features,labels,model_file):
         #test_accuracy = metrics.accuracy_score(y_true=test_labels, y_pred=predict_class)
 
     print(total_predicted_prob.shape)
+    print(total_labels.shape)
     total_predicted_prob = total_predicted_prob.reshape(labels.shape)
+    total_labels = total_labels.reshape(labels.shape)
     return total_predicted_prob, total_labels
 
 
