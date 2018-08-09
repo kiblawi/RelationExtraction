@@ -83,13 +83,16 @@ def neural_network_train_tfrecord(train_dataset_files, hidden_array, model_dir, 
         iterator_handle,
         dataset.output_types,
         dataset.output_shapes)
-    training_features, training_labels = iterator.get_next()
+    batch_features, batch_labels = iterator.get_next()
 
     train_iter = dataset.make_initializable_iterator()
 
 
     if test_features is not None and test_labels is not None:
-        test_dataset = tf.data.Dataset.from_tensor_slices((test_features, test_labels))
+        features_placeholder = tf.placeholder(test_features.dtype, test_features.shape,name='test_features')
+        labels_placeholder = tf.placeholder(test_labels.dtype, test_labels.shape,name='test_labels')
+
+        test_dataset = tf.data.Dataset.from_tensor_slices((features_placeholder, labels_placeholder))
         test_dataset = test_dataset.batch(1024)
         test_iter = test_dataset.make_initializable_iterator()
 
@@ -111,12 +114,12 @@ def neural_network_train_tfrecord(train_dataset_files, hidden_array, model_dir, 
     biases['out'] = tf.Variable(tf.random_normal([num_labels], stddev=0.1), name='out_bias')
 
     #with tf.device("/gpu:0"):
-    yhat = feed_forward(training_features, num_hidden_layers, weights, biases, keep_prob)
+    yhat = feed_forward(batch_features, num_hidden_layers, weights, biases, keep_prob)
     prob_yhat = tf.nn.sigmoid(yhat, name='predict_prob')
     class_yhat = tf.to_int32(prob_yhat > 0.5, name='class_predict')
 
     #with tf.device("/gpu:0"):
-    cost = tf.nn.sigmoid_cross_entropy_with_logits(labels=training_labels, logits=yhat)
+    cost = tf.nn.sigmoid_cross_entropy_with_logits(labels=batch_labels, logits=yhat)
     updates = tf.train.GradientDescentOptimizer(0.01).minimize(cost)
 
     saver = tf.train.Saver()
@@ -142,7 +145,7 @@ def neural_network_train_tfrecord(train_dataset_files, hidden_array, model_dir, 
             train_y_label_total = np.array([])
             while True:
                 try:
-                    batch_train_predict,batch_train_labels = sess.run([class_yhat,training_labels],feed_dict={iterator_handle:train_handle,keep_prob:1.0})
+                    batch_train_predict,batch_train_labels = sess.run([class_yhat,batch_labels],feed_dict={iterator_handle:train_handle,keep_prob:1.0})
                     train_y_predict_total = np.append(train_y_predict_total,batch_train_predict)
                     train_y_label_total = np.append(train_y_label_total,batch_train_labels)
                 except tf.errors.OutOfRangeError:
@@ -155,12 +158,13 @@ def neural_network_train_tfrecord(train_dataset_files, hidden_array, model_dir, 
 
             if test_features is not None and test_labels is not None:
                 test_handle = sess.run(test_iter.string_handle())
-                sess.run(test_iter.initializer)
+                sess.run(test_iter.initializer,feed_dict={features_placeholder: test_features,
+                                          labels_placeholder: test_labels})
                 test_y_predict_total = np.array([])
                 test_y_label_total = np.array([])
                 while True:
                     try:
-                        batch_test_predict,batch_test_labels = sess.run([class_yhat,training_labels],feed_dict={iterator_handle:test_handle,keep_prob:1.0})
+                        batch_test_predict,batch_test_labels = sess.run([class_yhat,batch_labels],feed_dict={iterator_handle:test_handle,keep_prob:1.0})
                         test_y_predict_total = np.append(test_y_predict_total,batch_test_predict)
                         test_y_label_total = np.append(test_y_label_total,batch_test_labels)
                     except tf.errors.OutOfRangeError:
