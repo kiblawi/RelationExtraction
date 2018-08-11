@@ -52,21 +52,21 @@ def feed_forward(input_tensor, num_hidden_layers, weights, biases,keep_prob):
 
 
 
-def neural_network_train_tfrecord(train_dataset_files, hidden_array, model_dir, num_features, key_order,test_features=None,test_labels=None):
-    c = 0
-    positive = 0
+def neural_network_train_tfrecord(train_dataset_files, hidden_array, model_dir, num_features, key_order,test_dataset_files=None):
+    training_instances_count = 0
+    num_positive_instances = 0
     for fn in train_dataset_files:
         for record in tf.python_io.tf_record_iterator(fn):
-            c += 1
+            training_instances_count += 1
             result = tf.train.Example.FromString(record)
             if result.features.feature['y'].bytes_list.value!=['\x00']:
-                positive+=1
-    print("count: ",c)
-    print("positives: ",positive)
+                num_positive_instances+=1
+    print("training count: ",training_instances_count)
+    print("training positives: ",num_positive_instances)
     tf.reset_default_graph()
     num_epochs=250
     num_labels = len(key_order)
-    print("number_of_features: ",num_features)
+    print("training number_of_features: ",num_features)
     num_hidden_layers = len(hidden_array)
     #build dataset
     dataset = tf.data.TFRecordDataset(train_dataset_files)
@@ -88,11 +88,20 @@ def neural_network_train_tfrecord(train_dataset_files, hidden_array, model_dir, 
     train_iter = dataset.make_initializable_iterator()
 
 
-    if test_features is not None and test_labels is not None:
-        features_placeholder = tf.placeholder(test_features.dtype, test_features.shape,name='test_features')
-        labels_placeholder = tf.placeholder(test_labels.dtype, test_labels.shape,name='test_labels')
+    if test_dataset_files is not None:
+        test_instances_count = 0
+        num_positive_test_instances = 0
+        for fn in train_dataset_files:
+            for record in tf.python_io.tf_record_iterator(fn):
+                test_instances_count += 1
+                result = tf.train.Example.FromString(record)
+                if result.features.feature['y'].bytes_list.value != ['\x00']:
+                    num_positive_test_instances += 1
+        print("test count: ", test_instances_count)
+        print("test positives: ", num_positive_test_instances)
 
-        test_dataset = tf.data.Dataset.from_tensor_slices((features_placeholder, labels_placeholder))
+        test_dataset = tf.data.TFRecordDataset(train_dataset_files)
+        test_dataset = test_dataset.map(parse)
         test_dataset = test_dataset.batch(1024)
         test_iter = test_dataset.make_initializable_iterator()
 
@@ -150,16 +159,15 @@ def neural_network_train_tfrecord(train_dataset_files, hidden_array, model_dir, 
                     train_y_label_total = np.append(train_y_label_total,batch_train_labels)
                 except tf.errors.OutOfRangeError:
                     break
-            train_y_predict_total = train_y_predict_total.reshape((c,1))
-            train_y_label_total = train_y_label_total.reshape((c,1))
-            train_accuracy = metrics.accuracy_score(y_true=train_y_label_total, y_pred=train_y_predict_total)
-            print("Epoch = %d, train accuracy = %.2f%%"
+            train_y_predict_total = train_y_predict_total.reshape((training_instances_count,1))
+            train_y_label_total = train_y_label_total.reshape((training_instances_count,1))
+            train_accuracy = metrics.f1_score(y_true=train_y_label_total, y_pred=train_y_predict_total)
+            print("Epoch = %d, f1-score = %.2f%%"
                   % (epoch, 100. * train_accuracy))
 
-            if test_features is not None and test_labels is not None:
+            if test_dataset_files is not None:
                 test_handle = sess.run(test_iter.string_handle())
-                sess.run(test_iter.initializer,feed_dict={features_placeholder: test_features,
-                                          labels_placeholder: test_labels})
+                sess.run(test_iter.initializer)
                 test_y_predict_total = np.array([])
                 test_y_label_total = np.array([])
                 while True:
@@ -169,10 +177,10 @@ def neural_network_train_tfrecord(train_dataset_files, hidden_array, model_dir, 
                         test_y_label_total = np.append(test_y_label_total,batch_test_labels)
                     except tf.errors.OutOfRangeError:
                         break
-                test_y_predict_total = test_y_predict_total.reshape(test_labels.shape)
-                test_y_label_total = test_y_label_total.reshape(test_labels.shape)
-                test_accuracy = metrics.accuracy_score(y_true=test_y_label_total, y_pred=test_y_predict_total)
-                print("Epoch = %d, test accuracy = %.2f%%"
+                test_y_predict_total = test_y_predict_total.reshape((test_instances_count,1))
+                test_y_label_total = test_y_label_total.reshape((test_instances_count,1))
+                test_accuracy = metrics.f1_score(y_true=test_y_label_total, y_pred=test_y_predict_total)
+                print("Epoch = %d, f1-score = %.2f%%"
                       % (epoch, 100. * test_accuracy))
 
     return save_path
@@ -323,7 +331,10 @@ def neural_network_test_large(features,labels,model_file):
 
     print(features.shape)
     print(labels.shape)
-    dataset = tf.data.Dataset.from_tensor_slices((features, labels))
+
+    features_placeholder = tf.placeholder(features.dtype, features.shape, name='test_features')
+    labels_placeholder = tf.placeholder(labels.dtype, labels.shape, name='test_labels')
+    dataset = tf.data.Dataset.from_tensor_slices((features_placeholder, labels_placeholder))
     dataset = dataset.batch(1024)
     total_predicted_prob = np.array([])
     total_labels = np.array([])
@@ -334,8 +345,10 @@ def neural_network_test_large(features,labels,model_file):
         graph = tf.get_default_graph()
         tensor_names = [t.name for op in graph.get_operations() for t in op.values()]
         iterator_handle = graph.get_tensor_by_name('iterator_handle:0')
-        test_iterator = dataset.make_one_shot_iterator()
+        test_iterator = dataset.make_initializable_iterator()
         new_handle = sess.run(test_iterator.string_handle())
+        sess.run(test_iterator.initializer, feed_dict={features_placeholder: features,
+                                                   labels_placeholder: labels})
         batch_features_tensor = graph.get_tensor_by_name('IteratorGetNext:0')
         batch_labels_tensor = graph.get_tensor_by_name('IteratorGetNext:1')
         keep_prob_tensor = graph.get_tensor_by_name('keep_prob:0')

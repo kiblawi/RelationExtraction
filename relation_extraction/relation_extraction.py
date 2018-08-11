@@ -155,44 +155,34 @@ def distant_train_large_data(model_out, abstract_folder, directional_distant_dir
     print(num_features)
 
     total_dataset_files = []
-    for path, subdirs, files in os.walk(abstract_folder):
-        for name in files:
-            if name.endswith('.tfrecord'):
-                print(name)
-                total_dataset_files.append(abstract_folder + '/' + name)
-    print(total_dataset_files)
-    if len(total_dataset_files) == 0:
-        total_dataset_files = load_data.build_instances_from_directory(abstract_folder, entity_a, entity_b, dep_dictionary, dep_word_dictionary,
+    if os.path.isdir(abstract_folder):
+        for path, subdirs, files in os.walk(abstract_folder):
+            for name in files:
+                if name.endswith('.tfrecord'):
+                    total_dataset_files.append(abstract_folder + '/' + name)
+        print(total_dataset_files)
+        if len(total_dataset_files) == 0:
+            total_dataset_files = load_data.build_instances_from_directory(abstract_folder, entity_a, entity_b, dep_dictionary, dep_word_dictionary,
                                    dep_element_dictionary, between_word_dictionary,
                                    distant_interactions, reverse_distant_interactions, key_order)
 
     hidden_array = []
-    print(total_dataset_files)
 
-    test_features = None
-    test_labels = None
-
+    total_test_files = []
     if os.path.isdir(testing_abstracts):
-        test_instances, test_features, test_labels = load_data.build_test_instances_from_directory(testing_abstracts,
-                                                                                                   entity_a, entity_b,
-                                                                                                   dep_dictionary,
-                                                                                                   dep_word_dictionary,
-                                                                                                   dep_element_dictionary,
-                                                                                                   between_word_dictionary,
-                                                                                                   distant_interactions,
-                                                                                                   reverse_distant_interactions,
-                                                                                                   key_order)
-        print('test_instances')
-        print(len(test_instances))
+        for path, subdirs, files in os.walk(testing_abstracts):
+            for name in files:
+                if name.endswith('.tfrecord'):
+                    total_test_files.append(testing_abstracts + '/' + name)
+        if len(total_test_files) == 0:
+            total_test_files = load_data.build_instances_from_directory(testing_abstracts, entity_a, entity_b,
+                                                                           dep_dictionary, dep_word_dictionary,
+                                                                           dep_element_dictionary,
+                                                                           between_word_dictionary,
+                                                                           distant_interactions,
+                                                                           reverse_distant_interactions, key_order)
 
-        test_labels = np.array(test_labels, dtype='float32')
-        test_features = np.array(test_features, dtype='float32')
-
-
-
-
-
-    trained_model_path = snn.neural_network_train_tfrecord(total_dataset_files, hidden_array, model_out + '/', num_features, key_order,test_features,test_labels)
+    trained_model_path = snn.neural_network_train_tfrecord(total_dataset_files, hidden_array, model_out + '/', num_features, key_order,total_test_files)
 
 
     return trained_model_path
