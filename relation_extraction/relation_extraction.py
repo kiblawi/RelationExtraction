@@ -33,9 +33,9 @@ def predict_sentences(model_file, abstract_folder, entity_a, entity_b):
 
 
     predict_features = []
-    outfile = open('/Users/kiblawi/Workspace/Data/predicted_results/hsv1-instances.txt','w')
+    outfile = open(model_file+'hsv1-instances.txt','w')
     for predict_index in range(len(predict_instances)):
-        if predict_index%2 == 0:
+        if predict_index%1 == 0:
             pi = predict_instances[predict_index]
             sentence_format = pi.sentence.sentence_words
             sentence_format[pi.entity_pair[0]] = '***' + sentence_format[pi.entity_pair[0]] + '***'
@@ -361,17 +361,16 @@ def main():
         for key_index in range(len(key_order)):
             key = key_order[key_index]
             outfile = open(out_pairs_file + '_' + key, 'w')
-            outfile.write('PMID\tENTITY_1\tENTITY_1_SPECIES\tENTITY_2\tENTITY_2_SPECIES\tPROBABILITY\tENTITY_1_NAME\tENTITY_2_NAME\n')
+            outfile.write('PMID\tENTITY_1\tENTITY_2\tCLASS_LABEL\tPROBABILITY\tSENTENCE\n')
             for i in range(len(prediction_instances)):
                 pi = prediction_instances[i]
                 outfile.write(str(pi.sentence.pmid) + '\t'
                               + str(pi.sentence.start_entity_id) + '\t'
-                              + str(pi.sentence.start_entity_species) + '\t'
                               + str(pi.sentence.end_entity_id) + '\t'
-                              + str(pi.sentence.end_entity_species) + '\t'
+                              + str(pi.label[key_index]) + '\t'
                               + str(predict_probs[i,key_index])+'\t'
                               + str(pi.sentence.start_entity_text) + '\t'
-                              + str(pi.sentence.end_entity_text) + '\n')
+                              + ' '.join(pi.sentence.sentence_words) + '\n')
 
             outfile.close()
 
