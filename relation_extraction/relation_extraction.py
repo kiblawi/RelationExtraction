@@ -143,6 +143,7 @@ def distant_train_large_data(model_out, abstract_folder, directional_distant_dir
         dep_dictionary, dep_word_dictionary, dep_element_dictionary, between_word_dictionary, key_order = pickle.load(open(model_out + 'a.pickle', 'rb'))
     #load in sentences and try to get dictionaries built
     else:
+        print('building dictionaries')
         dep_dictionary, \
         dep_word_dictionary, \
         dep_element_dictionary, \
