@@ -91,7 +91,7 @@ def neural_network_train_tfrecord(train_dataset_files, hidden_array, model_dir, 
     if test_dataset_files is not None:
         test_instances_count = 0
         num_positive_test_instances = 0
-        for fn in train_dataset_files:
+        for fn in test_dataset_files:
             for record in tf.python_io.tf_record_iterator(fn):
                 test_instances_count += 1
                 result = tf.train.Example.FromString(record)
@@ -100,7 +100,7 @@ def neural_network_train_tfrecord(train_dataset_files, hidden_array, model_dir, 
         print("test count: ", test_instances_count)
         print("test positives: ", num_positive_test_instances)
 
-        test_dataset = tf.data.TFRecordDataset(train_dataset_files)
+        test_dataset = tf.data.TFRecordDataset(test_dataset_files)
         test_dataset = test_dataset.map(parse)
         test_dataset = test_dataset.batch(1024)
         test_iter = test_dataset.make_initializable_iterator()
