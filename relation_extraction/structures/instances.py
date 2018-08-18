@@ -49,7 +49,8 @@ class Instance(object):
         self.dependency_words_indexes = []
         self.build_dependency_path_indexes()
 
-        self.dependency_path = '' #string of dependency path types
+        self.dependency_path_string = '' #string of dependency path types
+        self.dependency_path_list = [] #list of dependency path types
         self.dependency_words = [] #list of words in dependency path
         self.dependency_elements = [] #elements of dependency path (word1|deptype|word2)
 
@@ -133,7 +134,8 @@ class Instance(object):
                 word_path.append(start_word)
             type_path.append(dep_type)
             path_elements.append(dep_element)
-        self.dependency_path = ' '.join(type_path)
+        self.dependency_path_string = ' '.join(type_path)
+        self.dependency_path_list = type_path
         self.dependency_words = word_path
         self.dependency_elements = path_elements
 
@@ -190,7 +192,7 @@ class Instance(object):
         for i in between_intersection_set:
             between_features[between_word_dictionary[i]] = 1
 
-        dep_path_string = self.dependency_path
+        dep_path_string = self.dependency_path_string
         if dep_path_string in dep_dictionary:
             dep_features[dep_dictionary[dep_path_string]] = 1
 
