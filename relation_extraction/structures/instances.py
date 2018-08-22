@@ -136,7 +136,7 @@ class Instance(object):
             path_elements.append(dep_element)
         self.dependency_path_string = ' '.join(type_path)
         self.dependency_path_list = type_path
-        self.dependency_words = word_path
+        self.dependency_words = word_path[1:-1]
         self.dependency_elements = path_elements
 
     def get_dep_word_path(self):
@@ -208,14 +208,12 @@ class Instance(object):
 
         for i in range(len(self.dependency_path_list)):
             if self.dependency_path_list[i] not in dep_path_list_dictionary:
-                print(self.dependency_path_list[i])
                 dep_path_features[i] = unknown_dep_path_feature
             else:
                 dep_path_features[i] = dep_path_list_dictionary[self.dependency_path_list[i]] + 1
 
         for i in range(len(self.dependency_words)):
             if self.dependency_words[i] not in dep_word_dictionary:
-                print(self.dependency_words[i])
                 dep_word_features[i] = unknown_word_feature
             else:
                 dep_word_features[i] = dep_word_dictionary[self.dependency_words[i]] + 1

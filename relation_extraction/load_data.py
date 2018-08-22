@@ -50,7 +50,7 @@ def np_to_lstm_tfrecord(dep_path_list_features,dep_word_features,dep_type_path_l
 
     writer = tf.python_io.TFRecordWriter(tfresult_file)
     #print(features.shape[0])
-    for i in range(labels.shape[0]):
+    for i in range(len(labels)):
         dep_path_list_feat = dep_path_list_features[i]
         dep_path_list_feat = np.array(dep_path_list_feat,dtype='int32')
         dep_path_list_feat=dep_path_list_feat.tobytes()
@@ -62,6 +62,7 @@ def np_to_lstm_tfrecord(dep_path_list_features,dep_word_features,dep_type_path_l
         dep_path_length = dep_type_path_length[i]
         dep_path_length = np.array(dep_path_length,dtype='int32')
         dep_path_length = dep_path_length.tobytes()
+        #print(dep_path_length)
 
         dep_word_length = dep_word_path_length[i]
         dep_word_length = np.array(dep_word_length,dtype='int32')
@@ -396,7 +397,7 @@ def load_abstracts_from_directory(directory_folder,entity_1,entity_2):
                 continue
     #save dictionary to pickle file so you don't have to read them in every time.
     #pickle.dump(abstract_dict, open(directory_folder+'.pkl', "wb"))
-    print(len(total_abstract_sentences))
+
     return total_pmids,total_abstract_sentences
 
 def load_abstracts_from_pickle(pickle_file):
@@ -489,18 +490,18 @@ def build_dictionaries_from_directory(directory_folder,entity_a,entity_b, entity
             else:
                 continue
 
-    data, count, dep_path_word_dictionary, reversed_dictionary = build_dataset(path_word_vocabulary,100)
-    dep_data, dep_count, dep_dictionary, dep_reversed_dictionary = build_dataset(dep_type_vocabulary,100)
+    data, count, dep_path_word_dictionary, reversed_dictionary = build_dataset(path_word_vocabulary,0)
+    dep_data, dep_count, dep_dictionary, dep_reversed_dictionary = build_dataset(dep_type_vocabulary,0)
     dep_element_data, dep_element_count, dep_element_dictionary, dep_element_reversed_dictionary = build_dataset(
-        dep_type_word_elements_vocabulary,100)
+        dep_type_word_elements_vocabulary,0)
     between_data, between_count, between_word_dictionary, between_reversed_dictionary = build_dataset(
-        words_between_entities_vocabulary,100)
+        words_between_entities_vocabulary,0)
     dep_type_list_data, dep_type_list_count, dep_type_list_dictionary, dep_type_list_reversed_dictionary = build_dataset(
         dep_type_list_vocabulary, 0)
 
+
     if LSTM is False:
         return dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary
-
     else:
         return dep_type_list_dictionary,dep_path_word_dictionary
 
@@ -566,7 +567,7 @@ def build_LSTM_instances_from_directory(directory_folder, entity_a, entity_b, de
                 tfrecord_filename = name.replace('.txt','.tfrecord')
 
                 total_dataset.append(np_to_lstm_tfrecord(dep_path_list_features,dep_word_features,dep_type_path_length,
-                                                         dep_word_path_length,labels,directory_folder +'_tf_record/'+ tfrecord_filename))
+                                                         dep_word_path_length,labels,directory_folder +'_lstm_tf_record/'+ tfrecord_filename))
 
     return total_dataset
 

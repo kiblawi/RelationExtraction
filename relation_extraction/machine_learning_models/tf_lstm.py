@@ -25,8 +25,8 @@ def parse(serialized_example):
 
   #dep_path_list = tf.cast(dep_path_list,dtype=tf.float32)
   #dep_word_feat = tf.cast(dep_word_feat, dtype=tf.float32)
-  #dep_path_length = tf.cast(dep_path_length, dtype=tf.float32)
-  #dep_word_length = tf.cast(dep_word_length, dtype=tf.float32)
+  dep_path_length = tf.reshape(dep_path_length, []) #converts array back to scalar
+  dep_word_length = tf.reshape(dep_word_length, []) #converts array back to scalar
   label = tf.cast(label,dtype=tf.float32)
 
   return dep_path_list,dep_word_feat,dep_path_length,dep_word_length, label
@@ -39,8 +39,7 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
         for record in tf.python_io.tf_record_iterator(fn):
             training_instances_count += 1
             result = tf.train.Example.FromString(record)
-            print(result.features.feature['y'].bytes_list.value)
-            if result.features.feature['y'].bytes_list.value!=['\x00']:
+            if result.features.feature['y'].bytes_list.value!=['\x00\x00\x00\x00']:
                 num_positive_instances+=1
     print("training count: ",training_instances_count)
     print("training positives: ",num_positive_instances)
@@ -72,7 +71,7 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
             for record in tf.python_io.tf_record_iterator(fn):
                 test_instances_count += 1
                 result = tf.train.Example.FromString(record)
-                if result.features.feature['y'].bytes_list.value != ['\x00']:
+                if result.features.feature['y'].bytes_list.value != ['\x00\x00\x00\x00']:
                     num_positive_test_instances += 1
         print("test count: ", test_instances_count)
         print("test positives: ", num_positive_test_instances)
@@ -93,9 +92,6 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
     num_labels = len(key_order)
     num_epochs = 60
     maximum_length_path = tf.shape(batch_dependency_ids)[1]
-
-    tf.reset_default_graph()
-
 
 
     with tf.name_scope("dependency_type_embedding"):
@@ -172,7 +168,7 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
     with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
         init = tf.global_variables_initializer()
         sess.run(init)
-        saver = tf.train.Saver()
+        #saver = tf.train.Saver()
         #writer = tf.summary.FileWriter(model_dir, graph=tf.get_default_graph())
         for epoch in range(num_epochs):
             train_handle = sess.run(train_iter.string_handle())
@@ -181,8 +177,10 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
             while True:
                 try:
                     #print(sess.run([y_hidden_layer],feed_dict={iterator_handle:train_handle}))
-                    _, loss, step = sess.run([optimizer, total_loss, global_step], feed_dict={iterator_handle: train_handle})
+                    _, loss, step = sess.run([optimizer, total_loss, global_step],
+                                             feed_dict={iterator_handle: train_handle})
                     print("Step:", step, "loss:", loss)
+                    #print("Step:", step, "loss:", loss)
                     #save_path = saver.save(sess, model_dir)
                 except tf.errors.OutOfRangeError:
                     break

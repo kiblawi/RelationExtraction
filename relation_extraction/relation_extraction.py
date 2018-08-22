@@ -138,26 +138,25 @@ def train_lstm_large_data(model_out, abstract_folder, directional_distant_direct
     #print(distant_interactions)
 
     key_order = sorted(distant_interactions)
-
     #check if there is already dictionaries
     if os.path.isfile(model_out + 'a.pickle'):
         dep_type_list_dictionary, dep_word_dictionary, key_order = pickle.load(open(model_out + 'a.pickle', 'rb'))
     #load in sentences and try to get dictionaries built
     else:
-        print('building dictionaries')
-        dep_type_list_dictionary, \
-        dep_word_dictionary = load_data.build_dictionaries_from_directory(abstract_folder, entity_a, entity_b,True)
+        dep_type_list_dictionary, dep_word_dictionary = load_data.build_dictionaries_from_directory(abstract_folder, entity_a, entity_b,LSTM=True)
 
         pickle.dump([dep_type_list_dictionary, dep_word_dictionary, key_order], open(model_out + 'a.pickle', 'wb'))
 
 
+    print(dep_type_list_dictionary)
+    print(dep_word_dictionary)
     total_dataset_files = []
     if os.path.isdir(abstract_folder):
         for path, subdirs, files in os.walk(abstract_folder):
             for name in files:
                 if name.endswith('.tfrecord'):
                     total_dataset_files.append(abstract_folder + '/' + name)
-        print(total_dataset_files)
+
         if len(total_dataset_files) == 0:
             total_dataset_files = load_data.build_LSTM_instances_from_directory(abstract_folder, entity_a, entity_b, dep_type_list_dictionary, dep_word_dictionary,
                                    distant_interactions, reverse_distant_interactions, key_order)
@@ -179,7 +178,7 @@ def train_lstm_large_data(model_out, abstract_folder, directional_distant_direct
     num_dep_types = len(dep_type_list_dictionary) + 2
     num_path_words = len(dep_word_dictionary)+2
 
-    trained_model_path = snn.neural_network_train_tfrecord(total_dataset_files, num_dep_types,num_path_words, model_out + '/', key_order,total_test_files)
+    trained_model_path = lstm.lstm_train(total_dataset_files, num_dep_types,num_path_words, model_out + '/', key_order,total_test_files)
 
 
     return trained_model_path
