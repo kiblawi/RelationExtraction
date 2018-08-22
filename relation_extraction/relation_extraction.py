@@ -12,6 +12,7 @@ import time
 
 
 from machine_learning_models import tf_sess_neural_network as snn
+from machine_learning_models import tf_lstm as lstm
 
 from sklearn.linear_model import LogisticRegression, SGDClassifier
 from sklearn.externals import joblib
@@ -119,6 +120,69 @@ def distant_test_large_data(model_out, abstract_folder, directional_distant_dire
     np.testing.assert_array_equal(test_labels,predict_labels)
 
     cv.write_cv_output(model_out + '_test_predictions', instance_predicts, predict_labels, test_instances, key_order)
+
+
+def train_lstm_large_data(model_out, abstract_folder, directional_distant_directory, symmetric_distant_directory,
+                  distant_entity_a_col, distant_entity_b_col, distant_rel_col, entity_a, entity_b,testing_abstracts):
+
+    #get distant_relations from external knowledge base file
+    print(directional_distant_directory)
+    print(symmetric_distant_directory)
+    print(distant_entity_a_col)
+    print(distant_entity_b_col)
+    print(distant_rel_col)
+    distant_interactions, reverse_distant_interactions = load_data.load_distant_directories(directional_distant_directory,
+                                                                                            symmetric_distant_directory,
+                                                                                            distant_entity_a_col,
+                                                                                            distant_entity_b_col,distant_rel_col)
+    #print(distant_interactions)
+
+    key_order = sorted(distant_interactions)
+
+    #check if there is already dictionaries
+    if os.path.isfile(model_out + 'a.pickle'):
+        dep_type_list_dictionary, dep_word_dictionary, key_order = pickle.load(open(model_out + 'a.pickle', 'rb'))
+    #load in sentences and try to get dictionaries built
+    else:
+        print('building dictionaries')
+        dep_type_list_dictionary, \
+        dep_word_dictionary = load_data.build_dictionaries_from_directory(abstract_folder, entity_a, entity_b,True)
+
+        pickle.dump([dep_type_list_dictionary, dep_word_dictionary, key_order], open(model_out + 'a.pickle', 'wb'))
+
+
+    total_dataset_files = []
+    if os.path.isdir(abstract_folder):
+        for path, subdirs, files in os.walk(abstract_folder):
+            for name in files:
+                if name.endswith('.tfrecord'):
+                    total_dataset_files.append(abstract_folder + '/' + name)
+        print(total_dataset_files)
+        if len(total_dataset_files) == 0:
+            total_dataset_files = load_data.build_LSTM_instances_from_directory(abstract_folder, entity_a, entity_b, dep_type_list_dictionary, dep_word_dictionary,
+                                   distant_interactions, reverse_distant_interactions, key_order)
+
+    hidden_array = []
+
+    total_test_files = []
+    if os.path.isdir(testing_abstracts):
+        for path, subdirs, files in os.walk(testing_abstracts):
+            for name in files:
+                if name.endswith('.tfrecord'):
+                    total_test_files.append(testing_abstracts + '/' + name)
+        if len(total_test_files) == 0:
+            total_test_files = load_data.build_LSTM_instances_from_directory(testing_abstracts, entity_a, entity_b,
+                                                                           dep_type_list_dictionary, dep_word_dictionary,
+                                                                           distant_interactions,
+                                                                           reverse_distant_interactions, key_order)
+
+    num_dep_types = len(dep_type_list_dictionary) + 2
+    num_path_words = len(dep_word_dictionary)+2
+
+    trained_model_path = snn.neural_network_train_tfrecord(total_dataset_files, num_dep_types,num_path_words, model_out + '/', key_order,total_test_files)
+
+
+    return trained_model_path
 
 
 def distant_train_large_data(model_out, abstract_folder, directional_distant_directory, symmetric_distant_directory,
@@ -301,6 +365,34 @@ def main():
         else:
             trained_model_path = distant_train(model_out, abstract_folder, directional_distant_directory,symmetric_distant_directory,
                       distant_entity_a_col, distant_entity_b_col, distant_rel_col, entity_a,entity_b)
+
+
+        print(trained_model_path)
+        
+    elif "TRAIN_LSTM" in mode.upper():
+        model_out = sys.argv[2]  # location of where model should be saved after training
+        abstract_folder = sys.argv[3]  # xml file of sentences from Stanford Parser
+        directional_distant_directory = sys.argv[4]  # distant supervision knowledge base to use
+        symmetric_distant_directory = sys.argv[5]
+        distant_entity_a_col = int(sys.argv[6])  # entity 1 column
+        distant_entity_b_col = int(sys.argv[7])  # entity 2 column
+        print(distant_entity_b_col)
+        distant_rel_col = int(sys.argv[8])  # relation column
+        print(distant_rel_col)
+        entity_a = sys.argv[9].upper()  # entity_a
+        print(entity_a)
+        entity_b = sys.argv[10].upper()  # entity_b
+        testing_abstracts =sys.argv[11]
+
+        #symmetric = sys.argv[10].upper() in ['TRUE', 'Y', 'YES']  # is the relation symmetrical (i.e. binds)
+
+        if 'LARGE' in mode.upper():
+            trained_model_path = train_lstm_large_data(model_out, abstract_folder, directional_distant_directory,
+                                               symmetric_distant_directory,
+                                               distant_entity_a_col, distant_entity_b_col, distant_rel_col, entity_a,
+                                               entity_b,testing_abstracts)
+        else:
+            print('none')
 
 
         print(trained_model_path)

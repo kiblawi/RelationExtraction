@@ -45,6 +45,49 @@ def np_to_tfrecord(features,labels,tfresult_file):
 
     return tfresult_file
 
+def np_to_lstm_tfrecord(dep_path_list_features,dep_word_features,dep_type_path_length,
+                                                         dep_word_path_length,labels,tfresult_file):
+
+    writer = tf.python_io.TFRecordWriter(tfresult_file)
+    #print(features.shape[0])
+    for i in range(labels.shape[0]):
+        dep_path_list_feat = dep_path_list_features[i]
+        dep_path_list_feat = np.array(dep_path_list_feat,dtype='int32')
+        dep_path_list_feat=dep_path_list_feat.tobytes()
+
+        dep_word_feat = dep_word_features[i]
+        dep_word_feat = np.array(dep_word_feat, dtype='int32')
+        dep_word_feat = dep_word_feat.tobytes()
+
+        dep_path_length = dep_type_path_length[i]
+        dep_path_length = np.array(dep_path_length,dtype='int32')
+        dep_path_length = dep_path_length.tobytes()
+
+        dep_word_length = dep_word_path_length[i]
+        dep_word_length = np.array(dep_word_length,dtype='int32')
+        dep_word_length = dep_word_length.tobytes()
+
+        y = labels[i]
+        y = np.array(y,dtype='int32')
+        y = y.tobytes()
+
+        feature_dict = {}
+        feature_dict['dep_path_list'] = tf.train.Feature(bytes_list=tf.train.BytesList(value=[dep_path_list_feat]))
+        feature_dict['dep_word_feat'] = tf.train.Feature(bytes_list=tf.train.BytesList(value=[dep_word_feat]))
+        feature_dict['dep_path_length'] = tf.train.Feature(bytes_list=tf.train.BytesList(value=[dep_path_length]))
+        feature_dict['dep_word_length'] = tf.train.Feature(bytes_list=tf.train.BytesList(value=[dep_word_length]))
+        feature_dict['y'] = tf.train.Feature(bytes_list=tf.train.BytesList(value=[y]))
+        #print(feature_dict['x'])
+
+
+        example = tf.train.Example(features=tf.train.Features(feature=feature_dict))
+        serialized=example.SerializeToString()
+        #print(serialized)
+        writer.write(serialized)
+    writer.close()
+
+    return tfresult_file
+
 
 
 
@@ -162,11 +205,8 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
     return candidate_instances, dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary
 
 def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary,
-                            distant_interactions,reverse_distant_interactions, key_order, entity_1_list =  None, entity_2_list = None):
-    #print('in_test')
-    #print(len(dep_dictionary))
-    #print(len(dep_path_word_dictionary))
-    #print(len(dep_element_dictionary))
+                            distant_interactions,reverse_distant_interactions, key_order, entity_1_list =  None, entity_2_list = None,dep_path_type_dictionary=None):
+
     test_instances = []
     for test_sentence in test_sentences:
         entity_pairs = test_sentence.get_entity_pairs()
@@ -213,8 +253,12 @@ def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictio
             test_instances.append(forward_test_instance)
             #test_instances.append(reverse_test_instance)
 
-    for instance in test_instances:
-        instance.build_features(dep_dictionary, dep_path_word_dictionary, dep_element_dictionary,  between_word_dictionary)
+    if dep_path_type_dictionary is None:
+        for instance in test_instances:
+            instance.build_features(dep_dictionary, dep_path_word_dictionary, dep_element_dictionary,  between_word_dictionary)
+    else:
+        for instance in test_instances:
+            instance.build_lstm_features(dep_path_type_dictionary,dep_path_word_dictionary)
 
 
     return test_instances
@@ -382,12 +426,13 @@ def load_distant_directories(directional_distant_directory,symmetric_distant_dir
     return forward_dictionary, reverse_dictionary
 
 
-def build_dictionaries_from_directory(directory_folder,entity_a,entity_b, entity_1_list=None,entity_2_list=None):
+def build_dictionaries_from_directory(directory_folder,entity_a,entity_b, entity_1_list=None,entity_2_list=None,LSTM=False):
     print(directory_folder)
     path_word_vocabulary = []
     words_between_entities_vocabulary = []
     dep_type_vocabulary = []
     dep_type_word_elements_vocabulary = []
+    dep_type_list_vocabulary = []
 
     total_pmids = set()
     for path, subdirs, files in os.walk(directory_folder):
@@ -435,6 +480,8 @@ def build_dictionaries_from_directory(directory_folder,entity_a,entity_b, entity
                         words_between_entities_vocabulary += reverse_train_instance.between_words
                         dep_type_word_elements_vocabulary += forward_train_instance.dependency_elements
                         dep_type_word_elements_vocabulary += reverse_train_instance.dependency_elements
+                        dep_type_list_vocabulary += forward_train_instance.dependency_path_list
+                        dep_type_list_vocabulary += reverse_train_instance.dependency_path_list
                         dep_type_vocabulary.append(forward_train_instance.dependency_path_string)
                         dep_type_vocabulary.append(reverse_train_instance.dependency_path_string)
 
@@ -448,8 +495,14 @@ def build_dictionaries_from_directory(directory_folder,entity_a,entity_b, entity
         dep_type_word_elements_vocabulary,100)
     between_data, between_count, between_word_dictionary, between_reversed_dictionary = build_dataset(
         words_between_entities_vocabulary,100)
+    dep_type_list_data, dep_type_list_count, dep_type_list_dictionary, dep_type_list_reversed_dictionary = build_dataset(
+        dep_type_list_vocabulary, 0)
 
-    return dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary
+    if LSTM is False:
+        return dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary
+
+    else:
+        return dep_type_list_dictionary,dep_path_word_dictionary
 
 
 def build_instances_from_directory(directory_folder, entity_a, entity_b, dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary,
@@ -478,6 +531,42 @@ def build_instances_from_directory(directory_folder, entity_a, entity_b, dep_dic
                 tfrecord_filename = name.replace('.txt','.tfrecord')
 
                 total_dataset.append(np_to_tfrecord(features,labels,directory_folder +'_tf_record/'+ tfrecord_filename))
+
+    return total_dataset
+
+def build_LSTM_instances_from_directory(directory_folder, entity_a, entity_b, dep_type_list_dictionary, dep_path_word_dictionary,
+                                        distant_interactions, reverse_distant_interactions, key_order):
+    total_dataset= []
+    if os.path.isdir(directory_folder+'_lstm_tf_record') == False:
+        os.mkdir(directory_folder+'_lstm_tf_record')
+    for path, subdirs, files in os.walk(directory_folder):
+        for name in files:
+            if name.endswith('.txt'):
+                #print(name)
+                xmlpath = os.path.join(path, name)
+                test_sentences, pmids = load_xml(xmlpath, entity_a, entity_b)
+                candidate_instances = build_instances_testing(test_sentences, None, dep_path_word_dictionary, None, None,
+                                                              distant_interactions, reverse_distant_interactions, key_order, entity_1_list =  None, entity_2_list = None,dep_path_type_dictionary=dep_type_list_dictionary)
+
+                dep_path_list_features = []
+                dep_word_features = []
+                dep_type_path_length = []
+                dep_word_path_length = []
+                labels = []
+                instance_sentences = set()
+                for t in candidate_instances:
+                    # instance_sentences.add(' '.join(t.sentence.sentence_words))
+                    dep_path_list_features.append(t.features[0:20])
+                    dep_word_features.append(t.features[20:40])
+                    dep_type_path_length.append(t.features[40])
+                    dep_word_path_length.append(t.features[41])
+                    labels.append(t.label)
+
+
+                tfrecord_filename = name.replace('.txt','.tfrecord')
+
+                total_dataset.append(np_to_lstm_tfrecord(dep_path_list_features,dep_word_features,dep_type_path_length,
+                                                         dep_word_path_length,labels,directory_folder +'_tf_record/'+ tfrecord_filename))
 
     return total_dataset
 
