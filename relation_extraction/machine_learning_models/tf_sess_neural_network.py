@@ -145,9 +145,9 @@ def neural_network_train_tfrecord(train_dataset_files, hidden_array, model_dir, 
             while True:
                 try:
                     u=sess.run([updates],feed_dict={iterator_handle:train_handle,keep_prob:0.5})
-                    save_path = saver.save(sess,model_dir)
                 except tf.errors.OutOfRangeError:
                     break
+
             train_handle = sess.run(train_iter.string_handle())
             sess.run(train_iter.initializer)
             train_y_predict_total = np.array([])
@@ -182,7 +182,7 @@ def neural_network_train_tfrecord(train_dataset_files, hidden_array, model_dir, 
                 test_accuracy = metrics.f1_score(y_true=test_y_label_total, y_pred=test_y_predict_total)
                 print("Epoch = %d, f1-score = %.2f%%"
                       % (epoch, 100. * test_accuracy))
-
+            save_path = saver.save(sess, model_dir)
     return save_path
 
 def neural_network_train(train_X,train_y,test_X,test_y,hidden_array,model_dir,key_order):
