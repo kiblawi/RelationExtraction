@@ -6,6 +6,29 @@ from sklearn import metrics
 seed(10)
 tf.set_random_seed(10)
 
+def load_bin_vec(fname):
+    word_vecs = []
+    words = []
+    with open(fname,"rb") as f:
+        header = f.readline()
+        vocab_size,layer_size = map(int,header.split())
+        binary_len = np.dtype('float32').itemsize*layer_size
+        for line in range(vocab_size):
+            word = []
+            while True:
+                ch = f.read(1)
+                if ch == ' ':
+                    word = ''.join(word)
+                    break
+                if ch != '\n':
+                    word.append(ch)
+            word_vecs.append(np.fromstring(f.read(binary_len), dtype='float32'))
+            words.append(word)
+    words.append('UNKNOWN_WORD')
+    last_vector = word_vecs[-1]
+    word_vecs.append(np.zeros(last_vector.shape, dtype='float32'))
+    return words, word_vecs
+
 def parse(serialized_example):
   features = tf.parse_single_example(
     serialized_example,
@@ -31,7 +54,7 @@ def parse(serialized_example):
 
   return dep_path_list,dep_word_feat,dep_path_length,dep_word_length, label
 
-def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key_order,test_dataset_files=None):
+def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key_order,test_dataset_files=None,word2vec_embeddings = None):
 
     training_instances_count = 0
     num_positive_instances = 0
@@ -49,7 +72,7 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
     dataset = dataset.map(parse)
     dataset = dataset.shuffle(10000)
     #dataset = dataset.repeat(10)
-    dataset = dataset.batch(512)
+    dataset = dataset.batch(32)
 
 
     iterator_handle = tf.placeholder(tf.string, shape=[],name='iterator_handle')
@@ -85,27 +108,39 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
 
 
     lambda_l2 = 0.00001
-    word_embedding_dimension = 100
+    word_embedding_dimension = 200
     word_state_size = 100
     dep_embedding_dimension = 50
     dep_state_size = 50
     num_labels = len(key_order)
-    num_epochs = 60
+    num_epochs = 250
     maximum_length_path = tf.shape(batch_dependency_ids)[1]
 
+    keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
     with tf.name_scope("dependency_type_embedding"):
         W = tf.Variable(tf.random_uniform([num_dep_types, dep_embedding_dimension]), name="W")
         embedded_dep = tf.nn.embedding_lookup(W, batch_dependency_ids)
         dep_embedding_saver = tf.train.Saver({"dep_embedding/W": W})
 
-    with tf.name_scope("dependency_word_embedding"):
-        W = tf.Variable(tf.random_uniform([num_path_words, word_embedding_dimension]), name="W")
-        embedded_word = tf.nn.embedding_lookup(W, batch_word_ids)
-        word_embedding_saver = tf.train.Saver({"word_embedding/W": W})
+    if word2vec_embeddings is not None:
+        with tf.name_scope("word_embedding"):
+            print('bionlp_word_embedding')
+            W = tf.Variable(tf.constant(0.0, shape=[num_path_words, word_embedding_dimension]), name="W")
+            embedding_placeholder = tf.placeholder(tf.float32, [num_path_words, word_embedding_dimension])
+            embedding_init = W.assign(embedding_placeholder)
+            embedded_word = tf.nn.embedding_lookup(W, batch_word_ids)
+            word_embedding_saver = tf.train.Saver({"word_embedding/W": W})
+
+
+    else:
+        with tf.name_scope("dependency_word_embedding"):
+            W = tf.Variable(tf.random_uniform([num_path_words, word_embedding_dimension]), name="W")
+            embedded_word = tf.nn.embedding_lookup(W, batch_word_ids)
+            word_embedding_saver = tf.train.Saver({"word_embedding/W": W})
 
     with tf.name_scope("word_dropout"):
-        embedded_word_drop = tf.nn.dropout(embedded_word, 0.3)
+        embedded_word_drop = tf.nn.dropout(embedded_word, keep_prob)
 
     dependency_hidden_states = tf.zeros([tf.shape(batch_dependency_ids)[0], dep_state_size], name="dep_hidden_state")
     dependency_cell_states = tf.zeros([tf.shape(batch_dependency_ids)[0], dep_state_size], name="dep_cell_state")
@@ -136,13 +171,14 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
 
 
     with tf.name_scope("dropout"):
-        y_hidden_layer_drop = tf.nn.dropout(y_hidden_layer, 0.3)
+        y_hidden_layer_drop = tf.nn.dropout(y_hidden_layer, keep_prob)
 
     with tf.name_scope("sigmoid_layer"):
         W = tf.Variable(tf.truncated_normal([256, num_labels], -0.1, 0.1), name="W")
         b = tf.Variable(tf.zeros([num_labels]), name="b")
         logits = tf.matmul(y_hidden_layer_drop, W) + b
-        prob_yhat = tf.nn.sigmoid(logits, name='predict_prob')
+    prob_yhat = tf.nn.sigmoid(logits, name='predict_prob')
+    class_yhat = tf.to_int32(prob_yhat > 0.5, name='class_predict')
 
     tv_all = tf.trainable_variables()
     tv_regu = []
@@ -162,30 +198,53 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
 
     optimizer = tf.train.AdamOptimizer(0.001).minimize(total_loss, global_step=global_step)
 
-    #saver = tf.train.Saver()
+    saver = tf.train.Saver()
     # Run SGD
     save_path = None
     with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
         init = tf.global_variables_initializer()
         sess.run(init)
-        #saver = tf.train.Saver()
-        #writer = tf.summary.FileWriter(model_dir, graph=tf.get_default_graph())
+        saver = tf.train.Saver()
+        writer = tf.summary.FileWriter(model_dir, graph=tf.get_default_graph())
+        if word2vec_embeddings is not None:
+            print('using word2vec embeddings')
+            sess.run(embedding_init, feed_dict={embedding_placeholder: word2vec_embeddings})
         for epoch in range(num_epochs):
             train_handle = sess.run(train_iter.string_handle())
             sess.run(train_iter.initializer)
             print("epoch: ", epoch)
             while True:
                 try:
-                    #print(sess.run([y_hidden_layer],feed_dict={iterator_handle:train_handle}))
-                    _, loss, step = sess.run([optimizer, total_loss, global_step],
-                                             feed_dict={iterator_handle: train_handle})
-                    print("Step:", step, "loss:", loss)
-                    #print("Step:", step, "loss:", loss)
-                    #save_path = saver.save(sess, model_dir)
+                    # print(sess.run([y_hidden_layer],feed_dict={iterator_handle:train_handle}))
+                    u = sess.run([optimizer], feed_dict={iterator_handle: train_handle, keep_prob: 0.5})
+
+                except tf.errors.OutOfRangeError:
+                    break
+            train_handle = sess.run(train_iter.string_handle())
+            sess.run(train_iter.initializer)
+            total_predicted_prob = np.array([])
+            total_labels = np.array([])
+            while True:
+                try:
+                    predicted_class, b_labels = sess.run([class_yhat, batch_labels],
+                                                         feed_dict={iterator_handle: train_handle, keep_prob: 1.0})
+
+                    # print(predicted_val)
+                    # total_labels = np.append(total_labels, batch_labels)
+                    total_predicted_prob = np.append(total_predicted_prob, predicted_class)
+                    total_labels = np.append(total_labels, b_labels)
                 except tf.errors.OutOfRangeError:
                     break
 
-
+            total_predicted_prob = total_predicted_prob.reshape((training_instances_count,num_labels))
+            total_labels = total_labels.reshape((training_instances_count,num_labels))
+            for l in range(len(key_order)):
+                column_l = total_predicted_prob[:, l]
+                column_true = total_labels[:, l]
+                label_accuracy = metrics.f1_score(y_true=column_true, y_pred=column_l)
+                print("Epoch = %d,Label = %s: %.2f%% "
+                      % (epoch + 1, key_order[l], 100. * label_accuracy))
+            save_path = saver.save(sess, model_dir)
 
 def neural_network_test_tfrecord(total_dataset_files,model_file):
     c = 0

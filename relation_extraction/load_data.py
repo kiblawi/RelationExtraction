@@ -16,6 +16,7 @@ from lxml import etree
 
 from structures.sentence_structure import Sentence, Token, Dependency
 from structures.instances import Instance
+from machine_learning_models import tf_lstm as lstm
 
 
 def np_to_tfrecord(features,labels,tfresult_file):
@@ -503,7 +504,19 @@ def build_dictionaries_from_directory(directory_folder,entity_a,entity_b, entity
     if LSTM is False:
         return dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary
     else:
-        return dep_type_list_dictionary,dep_path_word_dictionary
+        dep_type_list_dictionary['UNKNOWN_WORD'] = len(dep_type_list_dictionary)
+        dep_path_word_dictionary['UNKNOWN_WORD'] = len(dep_path_word_dictionary)
+        word2vec_embeddings = None
+        if os.path.exists('./machine_learning_models/PubMed-w2v.bin'):
+            print('embeddings exist')
+            word2vec_words, word2vec_vectors = lstm.load_bin_vec('./machine_learning_models/PubMed-w2v.bin')
+            dep_path_word_dictionary = {k: v for v, k in enumerate(word2vec_words)}
+            word2vec_embeddings = np.array(word2vec_vectors)
+            print('finished fetching embeddings')
+
+
+        return dep_type_list_dictionary, dep_path_word_dictionary, word2vec_embeddings
+
 
 
 def build_instances_from_directory(directory_folder, entity_a, entity_b, dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary,

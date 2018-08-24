@@ -131,6 +131,7 @@ def train_lstm_large_data(model_out, abstract_folder, directional_distant_direct
     print(distant_entity_a_col)
     print(distant_entity_b_col)
     print(distant_rel_col)
+
     distant_interactions, reverse_distant_interactions = load_data.load_distant_directories(directional_distant_directory,
                                                                                             symmetric_distant_directory,
                                                                                             distant_entity_a_col,
@@ -141,15 +142,19 @@ def train_lstm_large_data(model_out, abstract_folder, directional_distant_direct
     #check if there is already dictionaries
     if os.path.isfile(model_out + 'a.pickle'):
         dep_type_list_dictionary, dep_word_dictionary, key_order = pickle.load(open(model_out + 'a.pickle', 'rb'))
+        word2vec_embeddings = None
+        if os.path.exists('./machine_learning_models/PubMed-w2v.bin'):
+            print('embeddings exist')
+            word2vec_words, word2vec_vectors = lstm.load_bin_vec('./machine_learning_models/PubMed-w2v.bin')
+            word2vec_embeddings = np.array(word2vec_vectors)
+            print('finished fetching embeddings')
     #load in sentences and try to get dictionaries built
     else:
-        dep_type_list_dictionary, dep_word_dictionary = load_data.build_dictionaries_from_directory(abstract_folder, entity_a, entity_b,LSTM=True)
+        dep_type_list_dictionary, dep_word_dictionary, word2vec_embeddings = load_data.build_dictionaries_from_directory(abstract_folder, entity_a, entity_b,LSTM=True)
 
         pickle.dump([dep_type_list_dictionary, dep_word_dictionary, key_order], open(model_out + 'a.pickle', 'wb'))
 
 
-    print(dep_type_list_dictionary)
-    print(dep_word_dictionary)
     total_dataset_files = []
     if os.path.isdir(abstract_folder):
         for path, subdirs, files in os.walk(abstract_folder):
@@ -175,10 +180,10 @@ def train_lstm_large_data(model_out, abstract_folder, directional_distant_direct
                                                                            distant_interactions,
                                                                            reverse_distant_interactions, key_order)
 
-    num_dep_types = len(dep_type_list_dictionary) + 2
-    num_path_words = len(dep_word_dictionary)+2
+    num_dep_types = len(dep_type_list_dictionary)
+    num_path_words = len(dep_word_dictionary)
 
-    trained_model_path = lstm.lstm_train(total_dataset_files, num_dep_types,num_path_words, model_out + '/', key_order,total_test_files)
+    trained_model_path = lstm.lstm_train(total_dataset_files, num_dep_types,num_path_words, model_out + '/', key_order,total_test_files,word2vec_embeddings)
 
 
     return trained_model_path
