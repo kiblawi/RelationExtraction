@@ -78,7 +78,7 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
     dataset = dataset.map(parse)
     dataset = dataset.shuffle(10000)
     #dataset = dataset.repeat(10)
-    dataset = dataset.batch(32)
+    dataset = dataset.batch(256)
 
 
     iterator_handle = tf.placeholder(tf.string, shape=[],name='iterator_handle')
@@ -251,6 +251,8 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
                 print("Epoch = %d,Label = %s: %.2f%% "
                       % (epoch + 1, key_order[l], 100. * label_accuracy))
             save_path = saver.save(sess, model_dir)
+
+    return save_path
 
 def lstm_test(test_features, test_labels,model_file):
     test_dep_path_list_features = test_features[0]
