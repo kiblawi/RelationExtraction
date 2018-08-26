@@ -265,7 +265,7 @@ def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictio
 
     return test_instances
 
-def build_instances_predict(predict_sentences,dep_dictionary, dep_word_dictionary, dep_element_dictionary, between_word_dictionary,key_order, entity_1_list = None, entity_2_list = None):
+def build_instances_predict(predict_sentences,dep_dictionary, dep_word_dictionary, dep_element_dictionary, between_word_dictionary,key_order, entity_1_list = None, entity_2_list = None,dep_path_type_dictionary=None):
 
     predict_instances = []
     for p_sentence in predict_sentences:
@@ -298,9 +298,13 @@ def build_instances_predict(predict_sentences,dep_dictionary, dep_word_dictionar
 
             predict_instances.append(forward_predict_instance)
 
+    if dep_path_type_dictionary is None:
+        for instance in predict_instances:
+            instance.build_features(dep_dictionary, dep_word_dictionary, dep_element_dictionary, between_word_dictionary)
 
-    for instance in predict_instances:
-        instance.build_features(dep_dictionary, dep_word_dictionary, dep_element_dictionary, between_word_dictionary)
+    else:
+        for instance in predict_instances:
+            instance.build_lstm_features(dep_path_type_dictionary,dep_word_dictionary)
 
     return predict_instances
 
@@ -507,10 +511,9 @@ def build_dictionaries_from_directory(directory_folder,entity_a,entity_b, entity
         dep_type_list_dictionary['UNKNOWN_WORD'] = len(dep_type_list_dictionary)
         dep_path_word_dictionary['UNKNOWN_WORD'] = len(dep_path_word_dictionary)
         word2vec_embeddings = None
-        if os.path.exists('./machine_learning_models/PubMed-w2v.bin'):
+        if os.path.exists(os.path.dirname(os.path.realpath(__file__)) +'/machine_learning_models/PubMed-w2v.bin'):
             print('embeddings exist')
-            word2vec_words, word2vec_vectors = lstm.load_bin_vec('./machine_learning_models/PubMed-w2v.bin')
-            dep_path_word_dictionary = {k: v for v, k in enumerate(word2vec_words)}
+            word2vec_words, word2vec_vectors,dep_path_word_dictionary = lstm.load_bin_vec(os.path.dirname(os.path.realpath(__file__)) +'/machine_learning_models/PubMed-w2v.bin')
             word2vec_embeddings = np.array(word2vec_vectors)
             print('finished fetching embeddings')
 
@@ -598,6 +601,31 @@ def build_test_instances_from_directory(directory_folder, entity_a, entity_b, de
                 test_sentences, pmids = load_xml(xmlpath, entity_a, entity_b)
                 candidate_instances = build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary,
                             distant_interactions,reverse_distant_interactions, key_order, entity_1_list =  None, entity_2_list = None)
+
+                for ci in candidate_instances:
+                    total_instances.append(ci)
+                    total_features.append(ci.features)
+                    total_labels.append(ci.label)
+
+    return total_instances,total_features,total_labels
+
+def build_LSTM_test_instances_from_directory(directory_folder, entity_a, entity_b, dep_path_type_dictionary, dep_path_word_dictionary,
+                                   distant_interactions, reverse_distant_interactions, key_order):
+
+    total_features = []
+    total_labels = []
+    total_instances = []
+    for path, subdirs, files in os.walk(directory_folder):
+        for name in files:
+            if name.endswith('.txt'):
+                #print(name)
+                xmlpath = os.path.join(path, name)
+                test_sentences, pmids = load_xml(xmlpath, entity_a, entity_b)
+                candidate_instances = build_instances_testing(test_sentences, None, dep_path_word_dictionary, None,
+                                                              None,
+                                                              distant_interactions, reverse_distant_interactions,
+                                                              key_order, entity_1_list=None, entity_2_list=None,
+                                                              dep_path_type_dictionary=dep_path_type_dictionary)
 
                 for ci in candidate_instances:
                     total_instances.append(ci)

@@ -9,6 +9,8 @@ tf.set_random_seed(10)
 def load_bin_vec(fname):
     word_vecs = []
     words = []
+    word_dict = {}
+    index = 0
     with open(fname,"rb") as f:
         header = f.readline()
         vocab_size,layer_size = map(int,header.split())
@@ -24,10 +26,14 @@ def load_bin_vec(fname):
                     word.append(ch)
             word_vecs.append(np.fromstring(f.read(binary_len), dtype='float32'))
             words.append(word)
+            word_dict[word] = index
+            index+=1
     words.append('UNKNOWN_WORD')
+    word_dict['UNKNOWN_WORD'] = index
     last_vector = word_vecs[-1]
     word_vecs.append(np.zeros(last_vector.shape, dtype='float32'))
-    return words, word_vecs
+    print('finished loading embeddings')
+    return words, word_vecs, word_dict
 
 def parse(serialized_example):
   features = tf.parse_single_example(
@@ -124,20 +130,20 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
         dep_embedding_saver = tf.train.Saver({"dep_embedding/W": W})
 
     if word2vec_embeddings is not None:
-        with tf.name_scope("word_embedding"):
+        with tf.name_scope("dependency_word_embedding"):
             print('bionlp_word_embedding')
             W = tf.Variable(tf.constant(0.0, shape=[num_path_words, word_embedding_dimension]), name="W")
             embedding_placeholder = tf.placeholder(tf.float32, [num_path_words, word_embedding_dimension])
             embedding_init = W.assign(embedding_placeholder)
             embedded_word = tf.nn.embedding_lookup(W, batch_word_ids)
-            word_embedding_saver = tf.train.Saver({"word_embedding/W": W})
+            word_embedding_saver = tf.train.Saver({"dependency_word_embedding/W": W})
 
 
     else:
         with tf.name_scope("dependency_word_embedding"):
             W = tf.Variable(tf.random_uniform([num_path_words, word_embedding_dimension]), name="W")
             embedded_word = tf.nn.embedding_lookup(W, batch_word_ids)
-            word_embedding_saver = tf.train.Saver({"word_embedding/W": W})
+            word_embedding_saver = tf.train.Saver({"dependency_word_embedding/W": W})
 
     with tf.name_scope("word_dropout"):
         embedded_word_drop = tf.nn.dropout(embedded_word, keep_prob)
@@ -190,9 +196,9 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
                 tv_regu.append(t)
 
     with tf.name_scope("loss"):
-        #l2_loss = lambda_l2 * tf.reduce_sum([tf.nn.l2_loss(v) for v in tv_regu])
+        l2_loss = lambda_l2 * tf.reduce_sum([tf.nn.l2_loss(v) for v in tv_regu])
         loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=batch_labels))
-        total_loss = loss #+ l2_loss
+        total_loss = loss + l2_loss
 
     global_step = tf.Variable(0, name="global_step")
 
@@ -246,47 +252,96 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
                       % (epoch + 1, key_order[l], 100. * label_accuracy))
             save_path = saver.save(sess, model_dir)
 
-def neural_network_test_tfrecord(total_dataset_files,model_file):
-    c = 0
-    positive = 0
-    labels = []
-    for fn in total_dataset_files:
-        for record in tf.python_io.tf_record_iterator(fn):
-            c += 1
-            result = tf.train.Example.FromString(record)
-            if result.features.feature['y'].bytes_list.value != ['\x00']:
-                labels.append(1)
-                positive += 1
-            else:
-                labels.append(0)
-    labels = np.array(labels)
-    print("count: ", c)
-    print("positives: ", positive)
+def lstm_test(test_features, test_labels,model_file):
+    test_dep_path_list_features = test_features[0]
+    test_dep_word_features = test_features[1]
+    test_dep_type_path_length = test_features[2]
+    test_dep_word_path_length = test_features[3]
 
-    dataset = tf.data.TFRecordDataset(total_dataset_files)
-    dataset = dataset.map(parse)
+    dependency_ids = tf.placeholder(test_dep_path_list_features.dtype, test_dep_path_list_features.shape,
+                                    name="dependency_ids")
+    dependency_type_sequence_length = tf.placeholder(test_dep_type_path_length.dtype,
+                                                     test_dep_type_path_length.shape,
+                                                     name="dependency_type_sequence_length")
+    word_ids = tf.placeholder(test_dep_word_features.dtype, test_dep_word_features.shape, name="word_ids")
+    dependency_word_sequence_length = tf.placeholder(test_dep_word_path_length.dtype,
+                                                     test_dep_word_path_length.shape,
+                                                     name="dependency_word_sequence_length")
+    output_tensor = tf.placeholder(tf.float32, test_labels.shape, name='output')
+    dataset = tf.data.Dataset.from_tensor_slices((dependency_ids, word_ids, dependency_type_sequence_length,
+                                                  dependency_word_sequence_length, output_tensor))
     dataset = dataset.batch(1)
 
+    total_labels = np.array([])
     total_predicted_prob = np.array([])
-
     with tf.Session() as sess:
         restored_model = tf.train.import_meta_graph(model_file + '.meta')
-        restored_model.restore(sess,model_file)
-        graph =tf.get_default_graph()
+        restored_model.restore(sess, model_file)
+        graph = tf.get_default_graph()
+
         iterator_handle = graph.get_tensor_by_name('iterator_handle:0')
-        iterator = dataset.make_initializable_iterator()
-        new_handle = sess.run(iterator.string_handle())
-        sess.run(iterator.initializer)
+        test_iterator = dataset.make_initializable_iterator()
+        new_handle = sess.run(test_iterator.string_handle())
+        sess.run(test_iterator.initializer, feed_dict={dependency_ids: test_dep_path_list_features,
+                                                       word_ids: test_dep_word_features,
+                                                       dependency_type_sequence_length: test_dep_type_path_length,
+                                                       dependency_word_sequence_length: test_dep_word_path_length,
+                                                       output_tensor: test_labels})
+        dependency_ids_tensor = graph.get_tensor_by_name('IteratorGetNext:0')
+        dependency_words_tensor = graph.get_tensor_by_name('IteratorGetNext:1')
+        dep_type_sequence_length_tensor = graph.get_tensor_by_name('IteratorGetNext:2')
+        dep_word_sequence_length_tensor = graph.get_tensor_by_name('IteratorGetNext:3')
+        batch_labels_tensor = graph.get_tensor_by_name('IteratorGetNext:4')
         keep_prob_tensor = graph.get_tensor_by_name('keep_prob:0')
         predict_tensor = graph.get_tensor_by_name('class_predict:0')
         predict_prob = graph.get_tensor_by_name('predict_prob:0')
         while True:
             try:
-                predicted_val, predict_class = sess.run([predict_prob,predict_tensor],feed_dict={iterator_handle: new_handle,keep_prob_tensor:1.0})
-                total_predicted_prob = np.append(total_predicted_prob,predicted_val[0])
+                predicted_val, batch_features, batch_labels = sess.run(
+                    [predict_prob, batch_labels_tensor],
+                    feed_dict={iterator_handle: new_handle, keep_prob_tensor: 1.0})
+                total_labels = np.append(total_labels, batch_labels)
+                total_predicted_prob = np.append(total_predicted_prob, predicted_val)
             except tf.errors.OutOfRangeError:
                 break
-        #test_accuracy = metrics.accuracy_score(y_true=test_labels, y_pred=predict_class)
+
+    print(total_predicted_prob.shape)
+    total_predicted_prob = total_predicted_prob.reshape(test_labels.shape)
+    total_labels = total_labels.reshape(test_labels.shape)
+    return total_predicted_prob, total_labels
+
+def lstm_predict(total_dataset_files,model_file):
+    dataset = tf.data.TFRecordDataset(total_dataset_files)
+    dataset = dataset.map(parse)
+    dataset = dataset.batch(1)
+
+
+    with tf.Session() as sess:
+        restored_model = tf.train.import_meta_graph(model_file + '.meta')
+        restored_model.restore(sess, model_file)
+        graph = tf.get_default_graph()
+        iterator_handle = graph.get_tensor_by_name('iterator_handle:0')
+        test_iterator = dataset.make_initializable_iterator()
+        new_handle = sess.run(test_iterator.string_handle())
+        sess.run(test_iterator.initializer)
+        dependency_ids_tensor = graph.get_tensor_by_name('IteratorGetNext:0')
+        dependency_words_tensor = graph.get_tensor_by_name('IteratorGetNext:1')
+        dep_type_sequence_length_tensor = graph.get_tensor_by_name('IteratorGetNext:2')
+        dep_word_sequence_length_tensor = graph.get_tensor_by_name('IteratorGetNext:3')
+        batch_labels_tensor = graph.get_tensor_by_name('IteratorGetNext:4')
+        keep_prob_tensor = graph.get_tensor_by_name('keep_prob:0')
+        predict_tensor = graph.get_tensor_by_name('class_predict:0')
+        predict_prob = graph.get_tensor_by_name('predict_prob:0')
+        total_predicted_prob = np.array([])
+        while True:
+            try:
+                predicted_val = sess.run([predict_prob], feed_dict={iterator_handle: new_handle, keep_prob_tensor: 1.0})
+                # print(predicted_val)
+                # total_labels = np.append(total_labels, batch_labels)
+                total_predicted_prob = np.append(total_predicted_prob, predicted_val[0])
+            except tf.errors.OutOfRangeError:
+                break
 
     print(total_predicted_prob)
-    return total_predicted_prob, labels
+    return total_predicted_prob
+

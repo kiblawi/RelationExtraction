@@ -80,6 +80,41 @@ def parallel_train(model_out, abstract_folder, directional_distant_directory, sy
 
     return batch_id
 
+def test_lstm_large_data(model_out, abstract_folder, directional_distant_directory, symmetric_distant_directory,
+                  distant_entity_a_col, distant_entity_b_col, distant_rel_col, entity_a, entity_b):
+    distant_interactions, reverse_distant_interactions = load_data.load_distant_directories(
+        directional_distant_directory,
+        symmetric_distant_directory,
+        distant_entity_a_col,
+        distant_entity_b_col, distant_rel_col)
+
+    key_order = sorted(distant_interactions)
+
+    # check if there is already dictionaries
+    if os.path.isfile(model_out + 'a.pickle'):
+        dep_path_list_dictionary, dep_word_dictionary, key_order = pickle.load(open(model_out + 'a.pickle', 'rb'))
+    # load in sentences and try to get dictionaries built
+    else:
+        print('error')
+
+    test_instances, test_features, test_labels = load_data.build_LSTM_test_instances_from_directory(abstract_folder, entity_a, entity_b,
+                                                                     dep_path_list_dictionary, dep_word_dictionary,
+                                                                     distant_interactions,
+                                                                     reverse_distant_interactions, key_order)
+
+    print('test_instances')
+    print(len(test_instances))
+
+    test_labels = np.array(test_labels, dtype='float32')
+    test_features = np.array(test_features, dtype='float32')
+
+    instance_predicts, predict_labels = lstm.lstm_test(test_features, test_labels, model_out + '/')
+    print(instance_predicts.shape)
+    np.testing.assert_array_equal(test_labels, predict_labels)
+
+    cv.write_cv_output(model_out + '_test_predictions', instance_predicts, predict_labels, test_instances, key_order)
+
+
 def distant_test_large_data(model_out, abstract_folder, directional_distant_directory, symmetric_distant_directory,
                   distant_entity_a_col, distant_entity_b_col, distant_rel_col, entity_a, entity_b):
 
@@ -125,12 +160,6 @@ def distant_test_large_data(model_out, abstract_folder, directional_distant_dire
 def train_lstm_large_data(model_out, abstract_folder, directional_distant_directory, symmetric_distant_directory,
                   distant_entity_a_col, distant_entity_b_col, distant_rel_col, entity_a, entity_b,testing_abstracts):
 
-    #get distant_relations from external knowledge base file
-    print(directional_distant_directory)
-    print(symmetric_distant_directory)
-    print(distant_entity_a_col)
-    print(distant_entity_b_col)
-    print(distant_rel_col)
 
     distant_interactions, reverse_distant_interactions = load_data.load_distant_directories(directional_distant_directory,
                                                                                             symmetric_distant_directory,
@@ -143,9 +172,9 @@ def train_lstm_large_data(model_out, abstract_folder, directional_distant_direct
     if os.path.isfile(model_out + 'a.pickle'):
         dep_type_list_dictionary, dep_word_dictionary, key_order = pickle.load(open(model_out + 'a.pickle', 'rb'))
         word2vec_embeddings = None
-        if os.path.exists('./machine_learning_models/PubMed-w2v.bin'):
+        if os.path.exists(os.path.dirname(os.path.realpath(__file__)) +'/machine_learning_models/PubMed-w2v.bin'):
             print('embeddings exist')
-            word2vec_words, word2vec_vectors = lstm.load_bin_vec('./machine_learning_models/PubMed-w2v.bin')
+            word2vec_words, word2vec_vectors, dep_word_dictionary = lstm.load_bin_vec(os.path.dirname(os.path.realpath(__file__)) +'/machine_learning_models/PubMed-w2v.bin')
             word2vec_embeddings = np.array(word2vec_vectors)
             print('finished fetching embeddings')
     #load in sentences and try to get dictionaries built
@@ -433,16 +462,22 @@ def main():
         entity_a = sys.argv[9].upper()  # entity_a
         print(entity_a)
         entity_b = sys.argv[10].upper()  # entity_b
-
+        LSTM = bool(sys.argv[11])
         # symmetric = sys.argv[10].upper() in ['TRUE', 'Y', 'YES']  # is the relation symmetrical (i.e. binds)
 
-
-        trained_model_path = distant_test_large_data(model_out, abstract_folder, directional_distant_directory,
+        if LSTM is False:
+            trained_model_path = distant_test_large_data(model_out, abstract_folder, directional_distant_directory,
                                                           symmetric_distant_directory,
                                                           distant_entity_a_col, distant_entity_b_col, distant_rel_col,
                                                           entity_a,
                                                           entity_b)
-
+        else:
+            trained_model_path = test_lstm_large_data(model_out, abstract_folder, directional_distant_directory,
+                                                         symmetric_distant_directory,
+                                                         distant_entity_a_col, distant_entity_b_col, distant_rel_col,
+                                                         entity_a,
+                                                         entity_b)
+        print('finished testfile')
 
     elif "PREDICT" in mode.upper():
         model_file = sys.argv[2]
