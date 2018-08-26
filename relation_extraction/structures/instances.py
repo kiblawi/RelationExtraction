@@ -206,7 +206,7 @@ class Instance(object):
         unknown_dep_path_feature = dep_path_list_dictionary['UNKNOWN_WORD']
         unknown_word_feature = dep_word_dictionary['UNKNOWN_WORD']
 
-        print(len(self.dependency_words))
+        print(len(self.dependency_path_list))
 
         for i in range(len(self.dependency_path_list)):
             if self.dependency_path_list[i] not in dep_path_list_dictionary:
