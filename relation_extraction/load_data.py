@@ -573,10 +573,10 @@ def build_LSTM_instances_from_directory(directory_folder, entity_a, entity_b, de
                 instance_sentences = set()
                 for t in candidate_instances:
                     # instance_sentences.add(' '.join(t.sentence.sentence_words))
-                    dep_path_list_features.append(t.features[0:20])
-                    dep_word_features.append(t.features[20:40])
-                    dep_type_path_length.append(t.features[40])
-                    dep_word_path_length.append(t.features[41])
+                    dep_path_list_features.append(t.features[0:40])
+                    dep_word_features.append(t.features[40:80])
+                    dep_type_path_length.append(t.features[80])
+                    dep_word_path_length.append(t.features[81])
                     labels.append(t.label)
 
 
