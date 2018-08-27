@@ -172,7 +172,7 @@ def train_lstm_large_data(model_out, abstract_folder, directional_distant_direct
     if os.path.isfile(model_out + 'a.pickle'):
         dep_type_list_dictionary, dep_word_dictionary, key_order = pickle.load(open(model_out + 'a.pickle', 'rb'))
         word2vec_embeddings = None
-        if os.path.exists(os.path.dirname(os.path.realpath(__file__)) +'/machine_learning_models/PubMed-w2v.bin'):
+        if os.path.isfile(os.path.dirname(os.path.realpath(__file__)) +'/machine_learning_models/PubMed-w2v.bin'):
             print('embeddings exist')
             word2vec_words, word2vec_vectors, dep_word_dictionary = lstm.load_bin_vec(os.path.dirname(os.path.realpath(__file__)) +'/machine_learning_models/PubMed-w2v.bin')
             word2vec_embeddings = np.array(word2vec_vectors)
