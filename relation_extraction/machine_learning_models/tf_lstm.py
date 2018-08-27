@@ -115,7 +115,7 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
 
     lambda_l2 = 0.00001
     word_embedding_dimension = 200
-    word_state_size = 100
+    word_state_size = 200
     dep_embedding_dimension = 50
     dep_state_size = 50
     num_labels = len(key_order)

@@ -200,8 +200,8 @@ class Instance(object):
 
 
     def build_lstm_features(self,dep_path_list_dictionary,dep_word_dictionary):
-        dep_path_features = [0]* 40
-        dep_word_features = [0] * 40
+        dep_path_features = [0]* 100
+        dep_word_features = [0] * 100
 
         unknown_dep_path_feature = dep_path_list_dictionary['UNKNOWN_WORD']
         unknown_word_feature = dep_word_dictionary['UNKNOWN_WORD']
