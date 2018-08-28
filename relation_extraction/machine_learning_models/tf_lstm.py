@@ -7,6 +7,11 @@ seed(10)
 tf.set_random_seed(10)
 
 def load_bin_vec(fname):
+    """
+    Loads word2vec embeddings from .bin file
+    :param fname: filename
+    :return: list of words, list of word embedding arrays, dictionary of word to index
+    """
     word_vecs = []
     words = []
     word_dict = {}
@@ -36,32 +41,43 @@ def load_bin_vec(fname):
     return words, word_vecs, word_dict
 
 def parse(serialized_example):
-  features = tf.parse_single_example(
-    serialized_example,
-    features ={
-      "dep_path_list": tf.FixedLenFeature([], tf.string, default_value=""),
-      "dep_word_feat": tf.FixedLenFeature([], tf.string, default_value=""),
-      "dep_path_length": tf.FixedLenFeature([], tf.string, default_value=""),
-      "dep_word_length": tf.FixedLenFeature([], tf.string, default_value=""),
-      "y": tf.FixedLenFeature([], tf.string, default_value="")
-    })
+    """
+    parses tfrecord file and reads it into memory
+    :param serialized_example: tfrecord parse line
+    """
 
-  dep_path_list = tf.decode_raw(features['dep_path_list'], tf.int32)
-  dep_word_feat = tf.decode_raw(features['dep_word_feat'],tf.int32)
-  dep_path_length = tf.decode_raw(features['dep_path_length'],tf.int32)
-  dep_word_length = tf.decode_raw(features['dep_word_length'],tf.int32)
-  label = tf.decode_raw(features['y'], tf.int32)
+    features = tf.parse_single_example(serialized_example,
+                                       features ={"dep_path_list": tf.FixedLenFeature([], tf.string, default_value=""),
+                                                  "dep_word_feat": tf.FixedLenFeature([], tf.string, default_value=""),
+                                                  "dep_path_length": tf.FixedLenFeature([], tf.string, default_value=""),
+                                                  "dep_word_length": tf.FixedLenFeature([], tf.string, default_value=""),
+                                                  "y": tf.FixedLenFeature([], tf.string, default_value="")})
 
-  #dep_path_list = tf.cast(dep_path_list,dtype=tf.float32)
-  #dep_word_feat = tf.cast(dep_word_feat, dtype=tf.float32)
-  dep_path_length = tf.reshape(dep_path_length, []) #converts array back to scalar
-  dep_word_length = tf.reshape(dep_word_length, []) #converts array back to scalar
-  label = tf.cast(label,dtype=tf.float32)
+    dep_path_list = tf.decode_raw(features['dep_path_list'], tf.int32)
+    dep_word_feat = tf.decode_raw(features['dep_word_feat'],tf.int32)
+    dep_path_length = tf.decode_raw(features['dep_path_length'],tf.int32)
+    dep_word_length = tf.decode_raw(features['dep_word_length'],tf.int32)
+    label = tf.decode_raw(features['y'], tf.int32)
 
-  return dep_path_list,dep_word_feat,dep_path_length,dep_word_length, label
+    dep_path_length = tf.reshape(dep_path_length, []) #converts array back to scalar
+    dep_word_length = tf.reshape(dep_word_length, []) #converts array back to scalar
+    label = tf.cast(label,dtype=tf.float32)
+
+    return dep_path_list,dep_word_feat,dep_path_length,dep_word_length, label
 
 def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key_order,test_dataset_files=None,word2vec_embeddings = None):
-
+    """
+    Trains LSTM model with word embeddings
+    :param train_dataset_files: list of training dataset (.tfrecord) files
+    :param num_dep_types: number of dep types
+    :param num_path_words: number of dep path words
+    :param model_dir: directory where model gets saved
+    :param key_order: key order of relations
+    :param test_dataset_files: list of testing datset (.tfrecord) files (optional)
+    :param word2vec_embeddings: word2vec embedding dictionary
+    :return: return saved path
+    """
+    # training set statistics
     training_instances_count = 0
     num_positive_instances = 0
     for fn in train_dataset_files:
@@ -73,26 +89,25 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
     print("training count: ",training_instances_count)
     print("training positives: ",num_positive_instances)
     tf.reset_default_graph()
-    #build dataset
+
+    # build training dataset
     dataset = tf.data.TFRecordDataset(train_dataset_files)
     dataset = dataset.map(parse)
     dataset = dataset.shuffle(10000)
-    #dataset = dataset.repeat(10)
     dataset = dataset.batch(256)
 
-
+    # build iterator
     iterator_handle = tf.placeholder(tf.string, shape=[],name='iterator_handle')
-    #tf.add_to_collection('iterator_handle',iterator_handle)
-
     iterator = tf.data.Iterator.from_string_handle(
         iterator_handle,
         dataset.output_types,
         dataset.output_shapes)
     batch_dependency_ids, batch_word_ids, batch_dependency_type_length, batch_dep_word_length, batch_labels = iterator.get_next()
 
+    #intialize training iterator
     train_iter = dataset.make_initializable_iterator()
 
-
+    #test dataset files
     if test_dataset_files is not None:
         test_instances_count = 0
         num_positive_test_instances = 0
@@ -233,11 +248,7 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
             total_labels = np.array([])
             while True:
                 try:
-                    predicted_class, b_labels = sess.run([class_yhat, batch_labels],
-                                                         feed_dict={iterator_handle: train_handle, keep_prob: 1.0})
-
-                    # print(predicted_val)
-                    # total_labels = np.append(total_labels, batch_labels)
+                    predicted_class, b_labels = sess.run([class_yhat, batch_labels],feed_dict={iterator_handle: train_handle, keep_prob: 1.0})
                     total_predicted_prob = np.append(total_predicted_prob, predicted_class)
                     total_labels = np.append(total_labels, b_labels)
                 except tf.errors.OutOfRangeError:
@@ -251,6 +262,28 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
                 label_accuracy = metrics.f1_score(y_true=column_true, y_pred=column_l)
                 print("Epoch = %d,Label = %s: %.2f%% "
                       % (epoch + 1, key_order[l], 100. * label_accuracy))
+
+            if test_dataset_files is not None:
+                test_handle = sess.run(test_iter.string_handle())
+                sess.run(test_iter.initializer)
+                test_y_predict_total = np.array([])
+                test_y_label_total = np.array([])
+                while True:
+                    try:
+                        batch_test_predict,batch_test_labels = sess.run([class_yhat,batch_labels],feed_dict={iterator_handle:test_handle,keep_prob:1.0})
+                        test_y_predict_total = np.append(test_y_predict_total,batch_test_predict)
+                        test_y_label_total = np.append(test_y_label_total,batch_test_labels)
+                    except tf.errors.OutOfRangeError:
+                        break
+                test_y_predict_total = test_y_predict_total.reshape((test_instances_count,1))
+                test_y_label_total = test_y_label_total.reshape((test_instances_count,1))
+                test_accuracy = metrics.f1_score(y_true=test_y_label_total, y_pred=test_y_predict_total)
+                for l in range(len(key_order)):
+                    column_l = test_y_predict_total[:, l]
+                    column_true = test_y_label_total[:, l]
+                    label_accuracy = metrics.f1_score(y_true=column_true, y_pred=column_l)
+                    print("Epoch = %d,Test Label = %s: %.2f%% "
+                          % (epoch + 1, key_order[l], 100. * label_accuracy))
             save_path = saver.save(sess, model_dir)
 
     return save_path
