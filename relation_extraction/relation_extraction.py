@@ -266,7 +266,7 @@ def distant_train_large_data(model_out, abstract_folder, directional_distant_dir
 
     hidden_array = []
 
-    total_test_files = []
+    total_test_files = None
     if os.path.isdir(testing_abstracts):
         for path, subdirs, files in os.walk(testing_abstracts):
             for name in files:
