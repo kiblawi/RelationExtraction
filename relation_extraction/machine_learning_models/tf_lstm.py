@@ -59,8 +59,8 @@ def parse(serialized_example):
     dep_word_length = tf.decode_raw(features['dep_word_length'],tf.int32)
     label = tf.decode_raw(features['y'], tf.int32)
 
-    dep_path_length = tf.reshape(dep_path_length, []) #converts array back to scalar
-    dep_word_length = tf.reshape(dep_word_length, []) #converts array back to scalar
+    dep_path_length = tf.reshape(dep_path_length, []) # converts array back to scalar
+    dep_word_length = tf.reshape(dep_word_length, []) # converts array back to scalar
     label = tf.cast(label,dtype=tf.float32)
 
     return dep_path_list,dep_word_feat,dep_path_length,dep_word_length, label
@@ -127,7 +127,7 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
 
 
 
-
+    # network parameters
     lambda_l2 = 0.00001
     word_embedding_dimension = 200
     word_state_size = 200
@@ -137,13 +137,16 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
     num_epochs = 250
     maximum_length_path = tf.shape(batch_dependency_ids)[1]
 
+    # keep probability for dropout layers
     keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
+    # embeddings for dependency types
     with tf.name_scope("dependency_type_embedding"):
         W = tf.Variable(tf.random_uniform([num_dep_types, dep_embedding_dimension]), name="W")
         embedded_dep = tf.nn.embedding_lookup(W, batch_dependency_ids)
         dep_embedding_saver = tf.train.Saver({"dep_embedding/W": W})
 
+    # embeddings for word2vec
     if word2vec_embeddings is not None:
         with tf.name_scope("dependency_word_embedding"):
             print('bionlp_word_embedding')
@@ -153,20 +156,23 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
             embedded_word = tf.nn.embedding_lookup(W, batch_word_ids)
             word_embedding_saver = tf.train.Saver({"dependency_word_embedding/W": W})
 
-
+    # randomized word embeddings
     else:
         with tf.name_scope("dependency_word_embedding"):
             W = tf.Variable(tf.random_uniform([num_path_words, word_embedding_dimension]), name="W")
             embedded_word = tf.nn.embedding_lookup(W, batch_word_ids)
             word_embedding_saver = tf.train.Saver({"dependency_word_embedding/W": W})
 
+    # dropout for word embeddings
     with tf.name_scope("word_dropout"):
         embedded_word_drop = tf.nn.dropout(embedded_word, keep_prob)
 
+    # iniitialize states for dependency LSTM
     dependency_hidden_states = tf.zeros([tf.shape(batch_dependency_ids)[0], dep_state_size], name="dep_hidden_state")
     dependency_cell_states = tf.zeros([tf.shape(batch_dependency_ids)[0], dep_state_size], name="dep_cell_state")
     dependency_init_states = tf.nn.rnn_cell.LSTMStateTuple(dependency_hidden_states, dependency_cell_states)
 
+    # initialize states for word LSTM
     word_hidden_state = tf.zeros([tf.shape(batch_word_ids)[0], word_state_size], name='word_hidden_state')
     word_cell_state = tf.zeros([tf.shape(batch_word_ids)[0], word_state_size], name='word_cell_state')
     word_init_state = tf.nn.rnn_cell.LSTMStateTuple(word_hidden_state, word_cell_state)
@@ -185,22 +191,25 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
 
     state_series = tf.concat([state_series_dep, state_series_word], 1)
 
+    # hidden layer for classification
     with tf.name_scope("hidden_layer"):
         W = tf.Variable(tf.truncated_normal([dep_state_size + word_state_size, 256], -0.1, 0.1), name="W")
         b = tf.Variable(tf.zeros([256]), name="b")
         y_hidden_layer = tf.matmul(state_series, W) + b
 
-
+    # dropout for hidden layer
     with tf.name_scope("dropout"):
         y_hidden_layer_drop = tf.nn.dropout(y_hidden_layer, keep_prob)
 
+    # sigmoid layer
     with tf.name_scope("sigmoid_layer"):
         W = tf.Variable(tf.truncated_normal([256, num_labels], -0.1, 0.1), name="W")
         b = tf.Variable(tf.zeros([num_labels]), name="b")
         logits = tf.matmul(y_hidden_layer_drop, W) + b
-    prob_yhat = tf.nn.sigmoid(logits, name='predict_prob')
-    class_yhat = tf.to_int32(prob_yhat > 0.5, name='class_predict')
+    prob_yhat = tf.nn.sigmoid(logits, name='predict_prob') # probability after feeding forward
+    class_yhat = tf.to_int32(prob_yhat > 0.5, name='class_predict') # class threshold
 
+    # calculating loss values
     tv_all = tf.trainable_variables()
     tv_regu = []
     non_reg = ["dependency_word_embedding/W:0", 'dependency_type_embedding/W:0', "global_step:0", 'hidden_layer/b:0',
@@ -221,7 +230,7 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
     optimizer = tf.train.AdamOptimizer(0.001).minimize(total_loss, global_step=global_step)
 
     saver = tf.train.Saver()
-    # Run SGD
+    # Run training
     save_path = None
     with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
         init = tf.global_variables_initializer()
@@ -237,11 +246,11 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
             print("epoch: ", epoch)
             while True:
                 try:
-                    # print(sess.run([y_hidden_layer],feed_dict={iterator_handle:train_handle}))
                     u = sess.run([optimizer], feed_dict={iterator_handle: train_handle, keep_prob: 0.5})
-
                 except tf.errors.OutOfRangeError:
                     break
+
+            # restart iterator for training eval
             train_handle = sess.run(train_iter.string_handle())
             sess.run(train_iter.initializer)
             total_predicted_prob = np.array([])
@@ -263,6 +272,7 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
                 print("Epoch = %d,Label = %s: %.2f%% "
                       % (epoch + 1, key_order[l], 100. * label_accuracy))
 
+            # iterator for test set
             if test_dataset_files is not None:
                 test_handle = sess.run(test_iter.string_handle())
                 sess.run(test_iter.initializer)
@@ -289,6 +299,13 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
     return save_path
 
 def lstm_test(test_features, test_labels,model_file):
+    """
+    test instances through lstm network
+    :param test_features: list of test features
+    :param test_labels: list of test labels
+    :param model_file: path of trained lstm model
+    :return: predicted probabilities and labels
+    """
     test_dep_path_list_features = test_features[0]
     test_dep_word_features = test_features[1]
     test_dep_type_path_length = test_features[2]
@@ -306,7 +323,7 @@ def lstm_test(test_features, test_labels,model_file):
     output_tensor = tf.placeholder(tf.float32, test_labels.shape, name='output')
     dataset = tf.data.Dataset.from_tensor_slices((dependency_ids, word_ids, dependency_type_sequence_length,
                                                   dependency_word_sequence_length, output_tensor))
-    dataset = dataset.batch(1)
+    dataset = dataset.batch(1000)
 
     total_labels = np.array([])
     total_predicted_prob = np.array([])
@@ -344,6 +361,7 @@ def lstm_test(test_features, test_labels,model_file):
     print(total_predicted_prob.shape)
     total_predicted_prob = total_predicted_prob.reshape(test_labels.shape)
     total_labels = total_labels.reshape(test_labels.shape)
+
     return total_predicted_prob, total_labels
 
 def lstm_predict(total_dataset_files,model_file):
@@ -372,8 +390,6 @@ def lstm_predict(total_dataset_files,model_file):
         while True:
             try:
                 predicted_val = sess.run([predict_prob], feed_dict={iterator_handle: new_handle, keep_prob_tensor: 1.0})
-                # print(predicted_val)
-                # total_labels = np.append(total_labels, batch_labels)
                 total_predicted_prob = np.append(total_predicted_prob, predicted_val[0])
             except tf.errors.OutOfRangeError:
                 break
