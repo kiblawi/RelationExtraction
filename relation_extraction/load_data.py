@@ -495,12 +495,12 @@ def build_dictionaries_from_directory(directory_folder,entity_a,entity_b, entity
             else:
                 continue
 
-    data, count, dep_path_word_dictionary, reversed_dictionary = build_dataset(path_word_vocabulary,0)
-    dep_data, dep_count, dep_dictionary, dep_reversed_dictionary = build_dataset(dep_type_vocabulary,0)
+    data, count, dep_path_word_dictionary, reversed_dictionary = build_dataset(path_word_vocabulary,100)
+    dep_data, dep_count, dep_dictionary, dep_reversed_dictionary = build_dataset(dep_type_vocabulary,100)
     dep_element_data, dep_element_count, dep_element_dictionary, dep_element_reversed_dictionary = build_dataset(
-        dep_type_word_elements_vocabulary,0)
+        dep_type_word_elements_vocabulary,100)
     between_data, between_count, between_word_dictionary, between_reversed_dictionary = build_dataset(
-        words_between_entities_vocabulary,0)
+        words_between_entities_vocabulary,100)
     dep_type_list_data, dep_type_list_count, dep_type_list_dictionary, dep_type_list_reversed_dictionary = build_dataset(
         dep_type_list_vocabulary, 0)
 

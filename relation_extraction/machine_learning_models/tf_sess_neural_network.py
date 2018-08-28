@@ -73,7 +73,7 @@ def neural_network_train_tfrecord(train_dataset_files, hidden_array, model_dir, 
     dataset = dataset.map(parse)
     dataset = dataset.shuffle(10000)
     #dataset = dataset.repeat(10)
-    dataset = dataset.batch(512)
+    dataset = dataset.batch(256)
 
 
     iterator_handle = tf.placeholder(tf.string, shape=[],name='iterator_handle')
