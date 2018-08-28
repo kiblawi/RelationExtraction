@@ -20,7 +20,13 @@ from machine_learning_models import tf_lstm as lstm
 
 
 def np_to_tfrecord(features,labels,tfresult_file):
-
+    """
+    converts np aray totfrecord
+    :param features: np array of features
+    :param labels: np array of labels
+    :param tfresult_file: name of tfrecord file
+    :return:  tfrecord file path
+    """
     writer = tf.python_io.TFRecordWriter(tfresult_file)
     #print(features.shape[0])
     for i in range(features.shape[0]):
@@ -35,9 +41,6 @@ def np_to_tfrecord(features,labels,tfresult_file):
         feature_dict = {}
         feature_dict['x'] = tf.train.Feature(bytes_list=tf.train.BytesList(value=[x]))
         feature_dict['y'] = tf.train.Feature(bytes_list=tf.train.BytesList(value=[y]))
-        #print(feature_dict['x'])
-
-
         example = tf.train.Example(features=tf.train.Features(feature=feature_dict))
         serialized=example.SerializeToString()
         #print(serialized)
@@ -48,7 +51,16 @@ def np_to_tfrecord(features,labels,tfresult_file):
 
 def np_to_lstm_tfrecord(dep_path_list_features,dep_word_features,dep_type_path_length,
                                                          dep_word_path_length,labels,tfresult_file):
+    """
 
+    :param dep_path_list_features: dependency path type features
+    :param dep_word_features:  dependency word path features
+    :param dep_type_path_length:  dep type path length
+    :param dep_word_path_length: dep word path length
+    :param labels: distantly trained labels
+    :param tfresult_file: tfrecord file path
+    :return: tfrecord file path
+    """
     writer = tf.python_io.TFRecordWriter(tfresult_file)
     #print(features.shape[0])
     for i in range(len(labels)):
@@ -91,10 +103,14 @@ def np_to_lstm_tfrecord(dep_path_list_features,dep_word_features,dep_type_path_l
     return tfresult_file
 
 
-
-
 def build_dataset(words, occur_count = None):
-    """Process raw mentions of features into dictionary and count dictionary"""
+    """
+    builds data dictionaries for list of word appearances
+    :param words: list of words
+    :param occur_count: number of words to filter
+    :return: return data dictionary, count dictionary, word to index dictionary, index to word dictionary
+    """
+
     num_total_words = len(set(words))
     discard_count = 0
     if occur_count is not None:
@@ -115,7 +131,13 @@ def build_dataset(words, occur_count = None):
     return data, count, dictionary, reversed_dictionary
 
 def feature_pruning(feature_dict,feature_count_tuples,prune_val):
-    """Feature pruning if not done earlier - Don't really need this  function"""
+    """
+    Feature pruning if not done earlier - Don't really need this  function
+    :param feature_dict: input dictionary
+    :param feature_count_tuples: counts of dictionary
+    :param prune_val: value to filter out
+    :return: feature dict
+    """
     feature_count_dict = dict(feature_count_tuples)
     for key, value in feature_count_dict.iteritems():
         if value < prune_val:
@@ -124,7 +146,16 @@ def feature_pruning(feature_dict,feature_count_tuples,prune_val):
     return feature_dict
 
 def build_instances_training(candidate_sentences, distant_interactions,reverse_distant_interactions,key_order, entity_1_list = None, entity_2_list = None):
-    ''' Builds instances for training'''
+    """
+    Builds instances for training
+    :param candidate_sentences: sentences
+    :param distant_interactions:
+    :param reverse_distant_interactions:
+    :param key_order:
+    :param entity_1_list:
+    :param entity_2_list:
+    :return:
+    """
     #initialize vocabularies for different features
     path_word_vocabulary = []
     words_between_entities_vocabulary = []
@@ -157,7 +188,6 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
                     continue
 
             entity_combos = set(itertools.product(entity_1,entity_2))
-            #print(entity_combos)
 
             forward_train_instance = Instance(candidate_sentence, pair[0], pair[1], [0]*len(key_order))
             #print(forward_train_instance.dependency_elements)

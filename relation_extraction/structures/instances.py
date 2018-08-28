@@ -7,9 +7,6 @@ def dijkstra(adj_matrix, source):
     previous = [-1] * len(adj_matrix)  # Previous node in optimal path from source
     distance[source] = 0  # Distance from source to source
     unreached = range(len(adj_matrix))  # All nodes in the graph are unoptimized -
-    # print distance
-    # print adj_matrix
-    # print source
 
     while len(unreached) > 0:  # The main loop
         u = distance.index(min(distance))  # Get the node closest to the source
