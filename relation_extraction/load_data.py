@@ -156,7 +156,7 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
     :param entity_2_list:
     :return:
     """
-    #initialize vocabularies for different features
+    # initialize vocabularies for different features
     path_word_vocabulary = []
     words_between_entities_vocabulary = []
     dep_type_vocabulary = []
@@ -170,6 +170,10 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
             entity_2_token = candidate_sentence.get_token(pair[1][0])
             entity_1 = entity_1_token.get_normalized_ner().split('|')
             entity_2 = entity_2_token.get_normalized_ner().split('|')
+
+            gene_to_gene = False
+            if 'GENE' in entity_1_token.get_ner() and 'GENE' in entity_2_token.get_ner():
+                gene_to_gene = True
 
             if entity_1_list is not None:
                 if len(set(entity_1).intersection(entity_1_list)) == 0:
@@ -190,9 +194,7 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
             entity_combos = set(itertools.product(entity_1,entity_2))
 
             forward_train_instance = Instance(candidate_sentence, pair[0], pair[1], [0]*len(key_order))
-            #print(forward_train_instance.dependency_elements)
             reverse_train_instance = Instance(candidate_sentence, pair[1], pair[0], [0]*len(key_order))
-            #print(reverse_train_instance.dependency_elements)
 
             for i in range(len(key_order)):
                 distant_key = key_order[i]
@@ -214,8 +216,10 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
             dep_type_word_elements_vocabulary += reverse_train_instance.dependency_elements
             dep_type_vocabulary.append(forward_train_instance.dependency_path_string)
             dep_type_vocabulary.append(reverse_train_instance.dependency_path_string)
+
             candidate_instances.append(forward_train_instance)
-            candidate_instances.append(reverse_train_instance)
+            if gene_to_gene is True:
+                candidate_instances.append(reverse_train_instance)
 
 
     data, count, dep_path_word_dictionary, reversed_dictionary = build_dataset(path_word_vocabulary,100)
@@ -224,7 +228,6 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
         dep_type_word_elements_vocabulary,100)
     between_data, between_count, between_word_dictionary, between_reversed_dictionary = build_dataset(
         words_between_entities_vocabulary,100)
-
 
     print(dep_dictionary)
     print(dep_path_word_dictionary)
@@ -238,7 +241,21 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
 
 def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary,
                             distant_interactions,reverse_distant_interactions, key_order, entity_1_list =  None, entity_2_list = None,dep_path_type_dictionary=None):
-
+    """
+    Builds instances for testing
+    :param test_sentences:
+    :param dep_dictionary:
+    :param dep_path_word_dictionary:
+    :param dep_element_dictionary:
+    :param between_word_dictionary:
+    :param distant_interactions:
+    :param reverse_distant_interactions:
+    :param key_order:
+    :param entity_1_list:  default is None
+    :param entity_2_list: default is None
+    :param dep_path_type_dictionary: default is None if not, that means we're creating LSTM model instances
+    :return: assembled test instances
+    """
     test_instances = []
     for test_sentence in test_sentences:
         entity_pairs = test_sentence.get_entity_pairs()
@@ -249,11 +266,16 @@ def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictio
             entity_1 = entity_1_token.get_normalized_ner().split('|')
             entity_2 = entity_2_token.get_normalized_ner().split('|')
 
+            gene_to_gene = False
+            if 'GENE' in entity_1_token.get_ner() and 'GENE' in entity_2_token.get_ner():
+                gene_to_gene = True
+
+
             if entity_1_list is not None:
                 if len(set(entity_1).intersection(entity_1_list)) == 0:
                     continue
 
-                #check if entity_2 overlaps with entity_1_list if so continue
+                # check if entity_2 overlaps with entity_1_list if so continue
                 if len(set(entity_2).intersection(entity_1_list)) > 0:
                     continue
 
@@ -283,7 +305,8 @@ def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictio
                         reverse_test_instance.set_label_i(1, i)
 
             test_instances.append(forward_test_instance)
-            #test_instances.append(reverse_test_instance)
+            if gene_to_gene is True:
+                test_instances.append(reverse_test_instance)
 
     if dep_path_type_dictionary is None:
         for instance in test_instances:
@@ -296,7 +319,19 @@ def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictio
     return test_instances
 
 def build_instances_predict(predict_sentences,dep_dictionary, dep_word_dictionary, dep_element_dictionary, between_word_dictionary,key_order, entity_1_list = None, entity_2_list = None,dep_path_type_dictionary=None):
-
+    """
+    buld instances for predicting values
+    :param predict_sentences:
+    :param dep_dictionary:
+    :param dep_word_dictionary:
+    :param dep_element_dictionary:
+    :param between_word_dictionary:
+    :param key_order:
+    :param entity_1_list:
+    :param entity_2_list:
+    :param dep_path_type_dictionary:
+    :return: prediciton instances
+    """
     predict_instances = []
     for p_sentence in predict_sentences:
 
@@ -307,6 +342,10 @@ def build_instances_predict(predict_sentences,dep_dictionary, dep_word_dictionar
             entity_2_token = p_sentence.get_token(pair[1][0])
             entity_1 = entity_1_token.get_normalized_ner().split('|')
             entity_2 = entity_2_token.get_normalized_ner().split('|')
+
+            gene_to_gene = False
+            if 'GENE' in entity_1_token.get_ner() and 'GENE' in entity_2_token.get_ner():
+                gene_to_gene = True
 
             if entity_1_list is not None:
                 if len(set(entity_1).intersection(entity_1_list)) == 0:
@@ -324,7 +363,8 @@ def build_instances_predict(predict_sentences,dep_dictionary, dep_word_dictionar
                    continue
 
             forward_predict_instance = Instance(p_sentence, pair[0], pair[1], [-1]*len(key_order))
-            reverse_predict_instance = Instance(p_sentence, pair[1], pair[0], [-1]*len(key_order))
+            if gene_to_gene is True:
+                reverse_predict_instance = Instance(p_sentence, pair[1], pair[0], [-1]*len(key_order))
 
             predict_instances.append(forward_predict_instance)
 
@@ -339,7 +379,13 @@ def build_instances_predict(predict_sentences,dep_dictionary, dep_word_dictionar
     return predict_instances
 
 def load_xml(xml_file, entity_1, entity_2):
-    '''loads xml file for sentences, stanford corenlp parsed format only'''
+    """
+    load xml files
+    :param xml_file:
+    :param entity_1:
+    :param entity_2:
+    :return:
+    """
     tree = etree.parse(xml_file)
     root = tree.getroot()
     candidate_sentences = []
@@ -380,7 +426,14 @@ def load_xml(xml_file, entity_1, entity_2):
 
 
 def load_distant_kb(distant_kb_file, column_a, column_b,distant_rel_col):
-    '''Loads data from knowledge base into tuples'''
+    """
+    loads data from knowldege bases into tuples
+    :param distant_kb_file:
+    :param column_a:
+    :param column_b:
+    :param distant_rel_col:
+    :return:
+    """
     distant_interactions = set()
     reverse_distant_interactions = set()
     #reads in lines from kb file
@@ -400,7 +453,13 @@ def load_distant_kb(distant_kb_file, column_a, column_b,distant_rel_col):
     return distant_interactions,reverse_distant_interactions
 
 def load_id_list(id_list,column_a):
-    '''loads normalized ids for entities, only called if file given'''
+    """
+    loads normalized ids for entities, only called if file given
+    :param id_list:
+    :param column_a:
+    :return:
+    """
+
     id_set = set()
     file = open(id_list,'rU')
     lines = file.readlines()
@@ -430,17 +489,30 @@ def load_abstracts_from_directory(directory_folder,entity_1,entity_2):
 
             else:
                 continue
-    #save dictionary to pickle file so you don't have to read them in every time.
-    #pickle.dump(abstract_dict, open(directory_folder+'.pkl', "wb"))
+
 
     return total_pmids,total_abstract_sentences
 
 def load_abstracts_from_pickle(pickle_file):
+    """
+    load asbtracts from pickle, don't know what this is for
+    :param pickle_file:
+    :return:
+    """
     abstract_dict = pickle.load( open(pickle_file, "rb" ) )
     return abstract_dict
 
 
 def load_distant_directories(directional_distant_directory,symmetric_distant_directory,distant_entity_a_col,distant_entity_b_col,distant_rel_col):
+    """
+    load distant directories
+    :param directional_distant_directory:
+    :param symmetric_distant_directory:
+    :param distant_entity_a_col:
+    :param distant_entity_b_col:
+    :param distant_rel_col:
+    :return: forward and reverse dictionaries for each type
+    """
     forward_dictionary = {}
     reverse_dictionary = {}
     for filename in os.listdir(directional_distant_directory):
@@ -463,6 +535,16 @@ def load_distant_directories(directional_distant_directory,symmetric_distant_dir
 
 
 def build_dictionaries_from_directory(directory_folder,entity_a,entity_b, entity_1_list=None,entity_2_list=None,LSTM=False):
+    """
+    build feature dictionaries from directory of abstracts
+    :param directory_folder:
+    :param entity_a:
+    :param entity_b:
+    :param entity_1_list:
+    :param entity_2_list:
+    :param LSTM:
+    :return:
+    """
     print(directory_folder)
     path_word_vocabulary = []
     words_between_entities_vocabulary = []
@@ -554,6 +636,20 @@ def build_dictionaries_from_directory(directory_folder,entity_a,entity_b, entity
 
 def build_instances_from_directory(directory_folder, entity_a, entity_b, dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary,
                                    distant_interactions, reverse_distant_interactions, key_order):
+    """
+    build instances from directory of abstract sentences
+    :param directory_folder:
+    :param entity_a:
+    :param entity_b:
+    :param dep_dictionary:
+    :param dep_path_word_dictionary:
+    :param dep_element_dictionary:
+    :param between_word_dictionary:
+    :param distant_interactions:
+    :param reverse_distant_interactions:
+    :param key_order:
+    :return:
+    """
     total_dataset= []
     if os.path.isdir(directory_folder+'_tf_record') == False:
         os.mkdir(directory_folder+'_tf_record')
@@ -583,6 +679,18 @@ def build_instances_from_directory(directory_folder, entity_a, entity_b, dep_dic
 
 def build_LSTM_instances_from_directory(directory_folder, entity_a, entity_b, dep_type_list_dictionary, dep_path_word_dictionary,
                                         distant_interactions, reverse_distant_interactions, key_order):
+    """
+    build lstm instances from directory of abstract sentences
+    :param directory_folder:
+    :param entity_a:
+    :param entity_b:
+    :param dep_type_list_dictionary:
+    :param dep_path_word_dictionary:
+    :param distant_interactions:
+    :param reverse_distant_interactions:
+    :param key_order:
+    :return:
+    """
     total_dataset= []
     if os.path.isdir(directory_folder+'_lstm_tf_record') == False:
         os.mkdir(directory_folder+'_lstm_tf_record')
@@ -619,6 +727,20 @@ def build_LSTM_instances_from_directory(directory_folder, entity_a, entity_b, de
 
 def build_test_instances_from_directory(directory_folder, entity_a, entity_b, dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary,
                                    distant_interactions, reverse_distant_interactions, key_order):
+    """
+    build test instances from directory of abstract folders does not make tfrecord files
+    :param directory_folder:
+    :param entity_a:
+    :param entity_b:
+    :param dep_dictionary:
+    :param dep_path_word_dictionary:
+    :param dep_element_dictionary:
+    :param between_word_dictionary:
+    :param distant_interactions:
+    :param reverse_distant_interactions:
+    :param key_order:
+    :return:
+    """
 
     total_features = []
     total_labels = []
@@ -641,7 +763,18 @@ def build_test_instances_from_directory(directory_folder, entity_a, entity_b, de
 
 def build_LSTM_test_instances_from_directory(directory_folder, entity_a, entity_b, dep_path_type_dictionary, dep_path_word_dictionary,
                                    distant_interactions, reverse_distant_interactions, key_order):
-
+    """
+    Build LSTM test instances from directory of abstract folders does not make tfrecord files
+    :param directory_folder:
+    :param entity_a:
+    :param entity_b:
+    :param dep_path_type_dictionary:
+    :param dep_path_word_dictionary:
+    :param distant_interactions:
+    :param reverse_distant_interactions:
+    :param key_order:
+    :return:
+    """
     total_features = []
     total_labels = []
     total_instances = []
