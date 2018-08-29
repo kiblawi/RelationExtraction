@@ -179,13 +179,13 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
 
     #dependency path and word LSTMS
     with tf.variable_scope("dependency_lstm"):
-        cell = tf.contrib.rnn.cudnn_rnn(dep_state_size)
+        cell = tf.contrib.cudnn_rnn.CudnnCompatibleLSTMCell(dep_state_size)
         state_series, current_state = tf.nn.dynamic_rnn(cell, embedded_dep, sequence_length=batch_dependency_type_length,
                                                         initial_state=dependency_init_states)
         state_series_dep = tf.reduce_max(state_series, axis=1)
 
     with tf.variable_scope("word_lstm"):
-        cell = tf.nn.rnn_cell.cudnn_rnn(word_state_size)
+        cell = tf.contrib.cudnn_rnn.CudnnCompatibleLSTMCell(word_state_size)
         state_series, current_state = tf.nn.dynamic_rnn(cell, embedded_word_drop, sequence_length=batch_dep_word_length,
                                                         initial_state=word_init_state)
         state_series_word = tf.reduce_max(state_series, axis=1)
