@@ -182,12 +182,12 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
 
     with tf.variable_scope("dependency_lstm"):
         cell = tf.contrib.cudnn_rnn.CudnnLSTM(1, dep_state_size)
-        state_series, current_state = cell(tf.transpose(embedded_dep,[1,0,2]))#, initial_state=dependency_init_states)
+        state_series, current_state = cell(tf.transpose(embedded_dep,[1,0,2]))
         state_series_dep = tf.reduce_max(state_series, axis=0)
 
     with tf.variable_scope("word_lstm"):
         cell = tf.contrib.cudnn_rnn.CudnnLSTM(1,word_state_size)
-        state_series, current_state = cell(tf.transpose(embedded_word_drop,[1,0,2]))#, initial_state=word_init_state)
+        state_series, current_state = cell(tf.transpose(embedded_word_drop,[1,0,2]))
         state_series_word = tf.reduce_max(state_series, axis=0)
         '''
         cell = tf.contrib.cudnn_rnn.CudnnCompatibleLSTMCell(word_state_size)
