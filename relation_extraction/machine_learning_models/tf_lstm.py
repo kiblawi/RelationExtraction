@@ -34,8 +34,11 @@ def load_bin_vec(fname):
             word_dict[word] = index
             index+=1
     words.append('UNKNOWN_WORD')
+    words.append('PADDING_WORD')
     word_dict['UNKNOWN_WORD'] = index
+    word_dict['PADDING_WORD'] = index+1
     last_vector = word_vecs[-1]
+    word_vecs.append(np.random.rand(last_vector.shape[0]))
     word_vecs.append(np.zeros(last_vector.shape, dtype='float32'))
     print('finished loading embeddings')
     return words, word_vecs, word_dict
@@ -178,17 +181,20 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
     word_init_state = tf.nn.rnn_cell.LSTMStateTuple(word_hidden_state, word_cell_state)
 
     with tf.variable_scope("dependency_lstm"):
-        cell = tf.contrib.rnn.BasicLSTMCell(dep_state_size)
-        state_series, current_state = tf.nn.dynamic_rnn(cell, embedded_dep, sequence_length=batch_dependency_type_length,
-                                                        initial_state=dependency_init_states)
-        state_series_dep = tf.reduce_max(state_series, axis=1)
+        cell = tf.contrib.cudnn_rnn.CudnnLSTM(1, dep_state_size)
+        state_series, current_state = cell(tf.transpose(embedded_dep,[1,0,2]))#, initial_state=dependency_init_states)
+        state_series_dep = tf.reduce_max(state_series, axis=0)
 
     with tf.variable_scope("word_lstm"):
-        cell = tf.nn.rnn_cell.BasicLSTMCell(word_state_size)
+        cell = tf.contrib.cudnn_rnn.CudnnLSTM(1,word_state_size)
+        state_series, current_state = cell(tf.transpose(embedded_word_drop,[1,0,2]))#, initial_state=word_init_state)
+        state_series_word = tf.reduce_max(state_series, axis=0)
+        '''
+        cell = tf.contrib.cudnn_rnn.CudnnCompatibleLSTMCell(word_state_size)
         state_series, current_state = tf.nn.dynamic_rnn(cell, embedded_word_drop, sequence_length=batch_dep_word_length,
                                                         initial_state=word_init_state)
         state_series_word = tf.reduce_max(state_series, axis=1)
-
+        '''
     state_series = tf.concat([state_series_dep, state_series_word], 1)
 
     # hidden layer for classification
