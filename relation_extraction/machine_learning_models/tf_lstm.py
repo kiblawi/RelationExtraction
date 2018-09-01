@@ -95,9 +95,10 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
 
     # build training dataset
     dataset = tf.data.TFRecordDataset(train_dataset_files)
-    dataset = dataset.map(parse)
     dataset = dataset.shuffle(10000)
+    dataset = dataset.map(parse,num_parallel_calls=4)
     dataset = dataset.batch(256)
+    dataset.prefetch(4)
 
     # build iterator
     iterator_handle = tf.placeholder(tf.string, shape=[],name='iterator_handle')
@@ -138,7 +139,7 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
     dep_state_size = 50
     num_labels = len(key_order)
     num_epochs = 250
-    maximum_length_path = tf.shape(batch_dependency_ids)[1]
+    #maximum_length_path = tf.shape(batch_dependency_ids)[1]
 
     # keep probability for dropout layers
     keep_prob = tf.placeholder(tf.float32, name='keep_prob')
