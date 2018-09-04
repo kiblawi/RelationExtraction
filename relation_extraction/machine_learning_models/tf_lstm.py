@@ -95,7 +95,7 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
 
     # build training dataset
     dataset = tf.data.TFRecordDataset(train_dataset_files)
-    dataset = dataset.shuffle(100000)
+    dataset = dataset.shuffle(10000)
     dataset = dataset.map(parse,num_parallel_calls=8)
     dataset = dataset.batch(256)
     dataset.prefetch(1)
