@@ -93,11 +93,21 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
     print("training positives: ",num_positive_instances)
     tf.reset_default_graph()
 
+    # network parameters
+    lambda_l2 = 0.00001
+    word_embedding_dimension = 200
+    word_state_size = 200
+    dep_embedding_dimension = 50
+    dep_state_size = 50
+    num_labels = len(key_order)
+    num_epochs = 250
+    batch_size = 1024
+
     # build training dataset
     dataset = tf.data.TFRecordDataset(train_dataset_files)
     #dataset = dataset.shuffle(10000)
-    dataset = dataset.map(parse,num_parallel_calls=64).prefetch(256*100)
-    dataset = dataset.batch(256) #batch size
+    dataset = dataset.map(parse,num_parallel_calls=64).prefetch(batch_size*100)
+    dataset = dataset.batch(batch_size) #batch size
     dataset = dataset.prefetch(1)
 
     # build iterator
@@ -131,14 +141,7 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
 
 
 
-    # network parameters
-    lambda_l2 = 0.00001
-    word_embedding_dimension = 200
-    word_state_size = 200
-    dep_embedding_dimension = 50
-    dep_state_size = 50
-    num_labels = len(key_order)
-    num_epochs = 250
+
     #maximum_length_path = tf.shape(batch_dependency_ids)[1]
 
     # keep probability for dropout layers
