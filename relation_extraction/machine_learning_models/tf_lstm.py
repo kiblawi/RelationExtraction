@@ -98,7 +98,7 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
     #dataset = dataset.shuffle(10000)
     dataset = dataset.map(parse,num_parallel_calls=64).prefetch(256*100)
     dataset = dataset.batch(256) #batch size
-    dataset.prefetch(1)
+    dataset = dataset.prefetch(1)
 
     # build iterator
     iterator_handle = tf.placeholder(tf.string, shape=[],name='iterator_handle')
