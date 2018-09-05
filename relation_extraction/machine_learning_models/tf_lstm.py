@@ -270,6 +270,7 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
             try:
                 u = sess.run([optimizer], feed_dict={iterator_handle: train_handle, keep_prob: 0.5})
                 instance_count+= batch_size
+                print(instance_count)
                 if instance_count > training_instances_count:
                     train_accuracy_handle = sess.run(train_accuracy_iter.string_handle())
                     sess.run(train_accuracy_iter.initializer)
