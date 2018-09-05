@@ -259,7 +259,6 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
             while True:
                 try:
                     u = sess.run([optimizer], feed_dict={iterator_handle: train_handle, keep_prob: 0.5})
-                    print('batch done')
                 except tf.errors.OutOfRangeError:
                     break
 
