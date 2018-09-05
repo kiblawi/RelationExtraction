@@ -109,14 +109,14 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
     dataset = dataset.repeat(num_epochs).prefetch(batch_size * 100)
     dataset = dataset.shuffle(batch_size * 50).prefetch(buffer_size=batch_size * 100)
     dataset = dataset.batch(batch_size)
-    dataset = dataset.prefetch(1)
+    dataset = dataset.prefetch(5)
 
     # build training dataset
     training_accuracy_dataset = tf.data.TFRecordDataset(train_dataset_files)
     # dataset = dataset.shuffle(10000)
     training_accuracy_dataset = training_accuracy_dataset.map(parse, num_parallel_calls=64).prefetch(batch_size * 100)
     training_accuracy_dataset = training_accuracy_dataset.batch(batch_size)  # batch size
-    training_accuracy_dataset = training_accuracy_dataset.prefetch(1)
+    training_accuracy_dataset = training_accuracy_dataset.prefetch(5)
 
     # build iterator
     iterator_handle = tf.placeholder(tf.string, shape=[],name='iterator_handle')
@@ -311,7 +311,6 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
                                 break
                         test_y_predict_total = test_y_predict_total.reshape((test_instances_count, 1))
                         test_y_label_total = test_y_label_total.reshape((test_instances_count, 1))
-                        test_accuracy = metrics.f1_score(y_true=test_y_label_total, y_pred=test_y_predict_total)
                         for l in range(len(key_order)):
                             column_l = test_y_predict_total[:, l]
                             column_true = test_y_label_total[:, l]
