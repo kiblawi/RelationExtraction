@@ -105,10 +105,18 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
 
     # build training dataset
     dataset = tf.data.TFRecordDataset(train_dataset_files)
-    #dataset = dataset.shuffle(10000)
     dataset = dataset.map(parse,num_parallel_calls=64).prefetch(batch_size*100)
-    dataset = dataset.batch(batch_size) #batch size
+    dataset = dataset.repeat(num_epochs).prefetch(batch_size * 100)
+    dataset = dataset.shuffle(batch_size * 50).prefetch(buffer_size=batch_size * 100)
+    dataset = dataset.batch(batch_size)
     dataset = dataset.prefetch(1)
+
+    # build training dataset
+    training_accuracy_dataset = tf.data.TFRecordDataset(train_dataset_files)
+    # dataset = dataset.shuffle(10000)
+    training_accuracy_dataset = training_accuracy_dataset.map(parse, num_parallel_calls=64).prefetch(batch_size * 100)
+    training_accuracy_dataset = training_accuracy_dataset.batch(batch_size)  # batch size
+    training_accuracy_dataset = training_accuracy_dataset.prefetch(1)
 
     # build iterator
     iterator_handle = tf.placeholder(tf.string, shape=[],name='iterator_handle')
@@ -120,7 +128,7 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
 
     #intialize training iterator
     train_iter = dataset.make_initializable_iterator()
-
+    train_accuracy_iter = training_accuracy_dataset.make_initializable_iterator()
     #test dataset files
     if test_dataset_files is not None:
         test_instances_count = 0
@@ -252,61 +260,76 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
         if word2vec_embeddings is not None:
             print('using word2vec embeddings')
             sess.run(embedding_init, feed_dict={embedding_placeholder: word2vec_embeddings})
-        for epoch in range(num_epochs):
-            train_handle = sess.run(train_iter.string_handle())
-            sess.run(train_iter.initializer)
-            print("epoch: ", epoch)
-            while True:
-                try:
-                    u = sess.run([optimizer], feed_dict={iterator_handle: train_handle, keep_prob: 0.5})
-                except tf.errors.OutOfRangeError:
-                    break
 
-            # restart iterator for training eval
-            train_handle = sess.run(train_iter.string_handle())
-            sess.run(train_iter.initializer)
-            total_predicted_prob = np.array([])
-            total_labels = np.array([])
-            while True:
-                try:
-                    predicted_class, b_labels = sess.run([class_yhat, batch_labels],feed_dict={iterator_handle: train_handle, keep_prob: 1.0})
-                    total_predicted_prob = np.append(total_predicted_prob, predicted_class)
-                    total_labels = np.append(total_labels, b_labels)
-                except tf.errors.OutOfRangeError:
-                    break
+        train_handle = sess.run(train_iter.string_handle())
+        sess.run(train_iter.initializer)
 
-            total_predicted_prob = total_predicted_prob.reshape((training_instances_count,num_labels))
-            total_labels = total_labels.reshape((training_instances_count,num_labels))
-            for l in range(len(key_order)):
-                column_l = total_predicted_prob[:, l]
-                column_true = total_labels[:, l]
-                label_accuracy = metrics.f1_score(y_true=column_true, y_pred=column_l)
-                print("Epoch = %d,Label = %s: %.2f%% "
-                      % (epoch + 1, key_order[l], 100. * label_accuracy))
+        epoch = 0
+        instance_count = 0
+        while True:
+            try:
+                u = sess.run([optimizer], feed_dict={iterator_handle: train_handle, keep_prob: 0.5})
+                instance_count+= batch_size
+                if instance_count > training_instances_count:
+                    train_accuracy_handle = sess.run(train_accuracy_iter.string_handle())
+                    sess.run(train_accuracy_iter.initializer)
+                    total_predicted_prob = np.array([])
+                    total_labels = np.array([])
+                    while True:
+                        try:
+                            predicted_class, b_labels = sess.run([class_yhat, batch_labels],
+                                                                 feed_dict={iterator_handle: train_accuracy_handle,
+                                                                            keep_prob: 1.0})
+                            # print(predicted_val)
+                            # total_labels = np.append(total_labels, batch_labels)
+                            total_predicted_prob = np.append(total_predicted_prob, predicted_class)
+                            total_labels = np.append(total_labels, b_labels)
+                        except tf.errors.OutOfRangeError:
+                            break
+                    total_predicted_prob = total_predicted_prob.reshape((training_instances_count,num_labels))
+                    total_labels = total_labels.reshape((training_instances_count,num_labels))
+                    for l in range(len(key_order)):
+                        column_l = total_predicted_prob[:, l]
+                        column_true = total_labels[:, l]
+                        label_accuracy = metrics.f1_score(y_true=column_true, y_pred=column_l)
+                        print("Epoch = %d,Label = %s: %.2f%% "
+                              % (epoch, key_order[l], 100. * label_accuracy))
 
-            # iterator for test set
-            if test_dataset_files is not None:
-                test_handle = sess.run(test_iter.string_handle())
-                sess.run(test_iter.initializer)
-                test_y_predict_total = np.array([])
-                test_y_label_total = np.array([])
-                while True:
-                    try:
-                        batch_test_predict,batch_test_labels = sess.run([class_yhat,batch_labels],feed_dict={iterator_handle:test_handle,keep_prob:1.0})
-                        test_y_predict_total = np.append(test_y_predict_total,batch_test_predict)
-                        test_y_label_total = np.append(test_y_label_total,batch_test_labels)
-                    except tf.errors.OutOfRangeError:
-                        break
-                test_y_predict_total = test_y_predict_total.reshape((test_instances_count,1))
-                test_y_label_total = test_y_label_total.reshape((test_instances_count,1))
-                test_accuracy = metrics.f1_score(y_true=test_y_label_total, y_pred=test_y_predict_total)
-                for l in range(len(key_order)):
-                    column_l = test_y_predict_total[:, l]
-                    column_true = test_y_label_total[:, l]
-                    label_accuracy = metrics.f1_score(y_true=column_true, y_pred=column_l)
-                    print("Epoch = %d,Test Label = %s: %.2f%% "
-                          % (epoch + 1, key_order[l], 100. * label_accuracy))
-            save_path = saver.save(sess, model_dir)
+
+                    if test_dataset_files is not None:
+                        test_handle = sess.run(test_iter.string_handle())
+                        sess.run(test_iter.initializer)
+                        test_y_predict_total = np.array([])
+                        test_y_label_total = np.array([])
+                        while True:
+                            try:
+                                batch_test_predict, batch_test_labels = sess.run([class_yhat, batch_labels], feed_dict={
+                                    iterator_handle: test_handle, keep_prob: 1.0})
+                                test_y_predict_total = np.append(test_y_predict_total, batch_test_predict)
+                                test_y_label_total = np.append(test_y_label_total, batch_test_labels)
+                            except tf.errors.OutOfRangeError:
+                                break
+                        test_y_predict_total = test_y_predict_total.reshape((test_instances_count, 1))
+                        test_y_label_total = test_y_label_total.reshape((test_instances_count, 1))
+                        test_accuracy = metrics.f1_score(y_true=test_y_label_total, y_pred=test_y_predict_total)
+                        for l in range(len(key_order)):
+                            column_l = test_y_predict_total[:, l]
+                            column_true = test_y_label_total[:, l]
+                            label_accuracy = metrics.f1_score(y_true=column_true, y_pred=column_l)
+                            print("Epoch = %d,Test Label = %s: %.2f%% "
+                                  % (epoch + 1, key_order[l], 100. * label_accuracy))
+
+                    epoch += 1
+                    instance_count = 0
+                    train_handle = sess.run(train_iter.string_handle())
+                    save_path = saver.save(sess, model_dir)
+
+
+            except tf.errors.OutOfRangeError:
+                break
+
+
+        save_path = saver.save(sess, model_dir)
 
     return save_path
 
