@@ -95,9 +95,10 @@ def neural_network_train(train_dataset_files, hidden_array, model_dir, num_featu
 
     # build dataset
     dataset = tf.data.TFRecordDataset(train_dataset_files)
-    dataset = dataset.map(parse)
     dataset = dataset.shuffle(10000)
+    dataset = dataset.map(parse, num_parallel_calls=8)
     dataset = dataset.batch(256)
+    dataset.prefetch(1)
 
     # build iterator for dataset
     iterator_handle = tf.placeholder(tf.string, shape=[],name='iterator_handle')
@@ -155,24 +156,23 @@ def neural_network_train(train_dataset_files, hidden_array, model_dir, num_featu
 
     saver = tf.train.Saver()
     # Run stochastic gradient descent
-    save_path=None
-
+    save_path = None
     with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
-        init = tf.global_variables_initializer() # initialize variables
+        init = tf.global_variables_initializer()
         sess.run(init)
+        saver = tf.train.Saver()
         writer = tf.summary.FileWriter(model_dir, graph=tf.get_default_graph())
-
         for epoch in range(num_epochs):
-            train_handle = sess.run(train_iter.string_handle()) # initialize train handle
+            train_handle = sess.run(train_iter.string_handle())
             sess.run(train_iter.initializer)
-            print("epoch: ",epoch)
+            print("epoch: ", epoch)
             while True:
                 try:
-                    u=sess.run([updates],feed_dict={iterator_handle:train_handle,keep_prob:0.5}) # update network weights
+                    u = sess.run([updates], feed_dict={iterator_handle: train_handle, keep_prob: 0.5})
                 except tf.errors.OutOfRangeError:
                     break
 
-            # remake train handle for evaluation
+            # restart iterator for training eval
             train_handle = sess.run(train_iter.string_handle())
             sess.run(train_iter.initializer)
             total_predicted_prob = np.array([])
@@ -186,7 +186,6 @@ def neural_network_train(train_dataset_files, hidden_array, model_dir, num_featu
                 except tf.errors.OutOfRangeError:
                     break
 
-            # print train set evaluation results
             total_predicted_prob = total_predicted_prob.reshape((training_instances_count, num_labels))
             total_labels = total_labels.reshape((training_instances_count, num_labels))
             for l in range(len(key_order)):
@@ -196,7 +195,7 @@ def neural_network_train(train_dataset_files, hidden_array, model_dir, num_featu
                 print("Epoch = %d,Label = %s: %.2f%% "
                       % (epoch + 1, key_order[l], 100. * label_accuracy))
 
-            # test set evaluation
+            # iterator for test set
             if test_dataset_files is not None:
                 test_handle = sess.run(test_iter.string_handle())
                 sess.run(test_iter.initializer)
@@ -213,6 +212,7 @@ def neural_network_train(train_dataset_files, hidden_array, model_dir, num_featu
                         break
                 test_y_predict_total = test_y_predict_total.reshape((test_instances_count, 1))
                 test_y_label_total = test_y_label_total.reshape((test_instances_count, 1))
+                test_accuracy = metrics.f1_score(y_true=test_y_label_total, y_pred=test_y_predict_total)
                 for l in range(len(key_order)):
                     column_l = test_y_predict_total[:, l]
                     column_true = test_y_label_total[:, l]
@@ -220,6 +220,7 @@ def neural_network_train(train_dataset_files, hidden_array, model_dir, num_featu
                     print("Epoch = %d,Test Label = %s: %.2f%% "
                           % (epoch + 1, key_order[l], 100. * label_accuracy))
             save_path = saver.save(sess, model_dir)
+
     return save_path
 
 
