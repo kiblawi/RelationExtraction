@@ -794,16 +794,9 @@ def build_LSTM_test_instances_from_directory(directory_folder, entity_a, entity_
                                                               key_order, entity_1_list=None, entity_2_list=None,
                                                               dep_path_type_dictionary=dep_path_type_dictionary)
 
-                dep_path_list_features = []
-                dep_word_features = []
-                dep_type_path_length = []
-                dep_word_path_length = []
-                labels = []
                 for ci in candidate_instances:
-                    dep_path_list_features.append(ci.features[0:100])
-                    dep_word_features.append(ci.features[100:200])
-                    dep_type_path_length.append(ci.features[200])
-                    dep_word_path_length.append(ci.features[201])
-                    labels.append(ci.label)
+                    total_instances.append(ci)
+                    total_features.append(ci.features)
+                    total_labels.append(ci.label)
 
     return total_instances,total_features,total_labels
