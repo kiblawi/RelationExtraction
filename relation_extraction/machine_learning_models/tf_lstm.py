@@ -359,6 +359,7 @@ def lstm_test(test_dep_path_list_features,test_dep_word_features,test_dep_type_p
     total_labels = np.array([])
     total_predicted_prob = np.array([])
     with tf.Session() as sess:
+        tf.contrib.resampler()
         restored_model = tf.train.import_meta_graph(model_file + '.meta')
         restored_model.restore(sess, model_file)
         graph = tf.get_default_graph()
