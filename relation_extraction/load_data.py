@@ -796,7 +796,7 @@ def build_LSTM_test_instances_from_directory(directory_folder, entity_a, entity_
 
                 for ci in candidate_instances:
                     total_instances.append(ci)
-                    total_features.append([ci.features[0:100],ci.features[100:200],[ci.features[200],ci.features[201]]])
+                    total_features.append([ci.features[0:100],ci.features[100:200],[ci.features[200]],[ci.features[201]]])
                     total_labels.append(ci.label)
 
     return total_instances,total_features,total_labels
