@@ -382,7 +382,7 @@ def lstm_test(test_dep_path_list_features,test_dep_word_features,test_dep_type_p
         predict_prob = graph.get_tensor_by_name('predict_prob:0')
         while True:
             try:
-                predicted_val, batch_features, batch_labels = sess.run(
+                predicted_val, batch_labels = sess.run(
                     [predict_prob, batch_labels_tensor],
                     feed_dict={iterator_handle: new_handle, keep_prob_tensor: 1.0})
                 total_labels = np.append(total_labels, batch_labels)
