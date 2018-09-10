@@ -435,7 +435,8 @@ def main():
         entity_a = sys.argv[9].upper()  # entity_a
         print(entity_a)
         entity_b = sys.argv[10].upper()  # entity_b
-        LSTM = bool(sys.argv[11]) # boolean to determine if you want to test LSTM or feed forward network
+        LSTM = sys.argv[11] # boolean to determine if you want to test LSTM or feed forward network
+        LSTM = LSTM == 'True'
 
 
         if LSTM is False:
