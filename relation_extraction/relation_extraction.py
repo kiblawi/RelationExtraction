@@ -124,10 +124,10 @@ def test_lstm(model_out, abstract_folder, directional_distant_directory, symmetr
 
     print('test_instances')
     print(len(test_instances))
-    print(test_features)
+    #print(test_features)
     # create np arrays
     test_labels = np.array(test_labels, dtype='float32')
-    #test_features = np.array(test_features, dtype='float32')
+    test_features = np.array(test_features, dtype='float32')
 
     # tests instances for LSTM model
     instance_predicts, predict_labels = lstm.lstm_test(test_features, test_labels, model_out + '/')

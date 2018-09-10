@@ -340,10 +340,10 @@ def lstm_test(test_features, test_labels,model_file):
     :param model_file: path of trained lstm model
     :return: predicted probabilities and labels
     """
-    test_dep_path_list_features = np.array(test_features[0],dtype='float32')
-    test_dep_word_features = np.array(test_features[1],dtype='float32')
-    test_dep_type_path_length = np.array(test_features[2],dtype='float32')
-    test_dep_word_path_length = np.array(test_features[3],dtype='float32')
+    test_dep_path_list_features = test_features[:,0]
+    test_dep_word_features = test_features[:,1]
+    test_dep_type_path_length = test_features[:,2]
+    test_dep_word_path_length = test_features[:,3]
 
     dependency_ids = tf.placeholder(test_dep_path_list_features.dtype, test_dep_path_list_features.shape,
                                     name="dependency_ids")
