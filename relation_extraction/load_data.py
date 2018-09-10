@@ -779,7 +779,11 @@ def build_LSTM_test_instances_from_directory(directory_folder, entity_a, entity_
     :param key_order:
     :return:
     """
-    total_features = []
+    total_dep_id_features = []
+    total_dep_word_features = []
+    total_dep_id_length = []
+    total_dep_word_length = []
+
     total_labels = []
     total_instances = []
     for path, subdirs, files in os.walk(directory_folder):
@@ -796,7 +800,10 @@ def build_LSTM_test_instances_from_directory(directory_folder, entity_a, entity_
 
                 for ci in candidate_instances:
                     total_instances.append(ci)
-                    total_features.append([ci.features[0:100],ci.features[100:200],[ci.features[200]],[ci.features[201]]])
+                    total_dep_id_features.append(ci.features[0:100])
+                    total_dep_word_features.append(ci.features[100:200])
+                    total_dep_id_length.append(ci.features[200])
+                    total_dep_word_length.append(ci.features[201])
                     total_labels.append(ci.label)
 
-    return total_instances,total_features,total_labels
+    return total_instances,total_dep_id_features,total_dep_word_features,total_dep_id_length,total_dep_word_length,total_labels

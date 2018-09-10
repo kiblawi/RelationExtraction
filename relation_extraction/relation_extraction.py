@@ -117,7 +117,7 @@ def test_lstm(model_out, abstract_folder, directional_distant_directory, symmetr
         print('error')
 
     # builds test_instances,features, and labels for LSTM model
-    test_instances, test_features, test_labels = load_data.build_LSTM_test_instances_from_directory(abstract_folder, entity_a, entity_b,
+    test_instances, test_dependency_ids,test_dependency_words,test_dep_type_path_length,test_dep_word_path_length, test_labels = load_data.build_LSTM_test_instances_from_directory(abstract_folder, entity_a, entity_b,
                                                                      dep_path_list_dictionary, dep_word_dictionary,
                                                                      distant_interactions,
                                                                      reverse_distant_interactions, key_order)
@@ -127,10 +127,13 @@ def test_lstm(model_out, abstract_folder, directional_distant_directory, symmetr
     #print(test_features)
     # create np arrays
     test_labels = np.array(test_labels, dtype='float32')
-    test_features = np.array(test_features, dtype='float32')
+    test_dependency_ids = np.array(test_dependency_ids, dtype='float32')
+    test_dependency_words = np.array(test_dependency_words, type='float32')
+    test_dep_type_path_length = np.array(test_dep_type_path_length, type='float32')
+    test_dep_word_path_length = np.array(test_dep_word_path_length, type='float32')
 
     # tests instances for LSTM model
-    instance_predicts, predict_labels = lstm.lstm_test(test_features, test_labels, model_out + '/')
+    instance_predicts, predict_labels = lstm.lstm_test(test_dependency_ids,test_dependency_words,test_dep_type_path_length,test_dep_word_path_length, test_labels, model_out + '/')
     print(instance_predicts.shape)
     np.testing.assert_array_equal(test_labels, predict_labels)
 

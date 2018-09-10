@@ -332,7 +332,7 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
 
     return save_path
 
-def lstm_test(test_features, test_labels,model_file):
+def lstm_test(test_dep_path_list_features,test_dep_word_features,test_dep_type_path_length,test_dep_word_path_length, test_labels,model_file):
     """
     test instances through lstm network
     :param test_features: list of test features
@@ -340,10 +340,7 @@ def lstm_test(test_features, test_labels,model_file):
     :param model_file: path of trained lstm model
     :return: predicted probabilities and labels
     """
-    test_dep_path_list_features = test_features[:,0]
-    test_dep_word_features = test_features[:,1]
-    test_dep_type_path_length = test_features[:,2]
-    test_dep_word_path_length = test_features[:,3]
+
 
     dependency_ids = tf.placeholder(test_dep_path_list_features.dtype, test_dep_path_list_features.shape,
                                     name="dependency_ids")
