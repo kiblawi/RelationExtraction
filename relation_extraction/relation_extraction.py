@@ -127,10 +127,10 @@ def test_lstm(model_out, abstract_folder, directional_distant_directory, symmetr
     #print(test_features)
     # create np arrays
     test_labels = np.array(test_labels, dtype='float32')
-    test_dependency_ids = np.array(test_dependency_ids, dtype='float32')
-    test_dependency_words = np.array(test_dependency_words, dtype='float32')
-    test_dep_type_path_length = np.array(test_dep_type_path_length, dtype='float32')
-    test_dep_word_path_length = np.array(test_dep_word_path_length, dtype='float32')
+    test_dependency_ids = np.array(test_dependency_ids, dtype='int32')
+    test_dependency_words = np.array(test_dependency_words, dtype='int32')
+    test_dep_type_path_length = np.array(test_dep_type_path_length, dtype='int32')
+    test_dep_word_path_length = np.array(test_dep_word_path_length, dtype='int32')
 
     # tests instances for LSTM model
     instance_predicts, predict_labels = lstm.lstm_test(test_dependency_ids,test_dependency_words,test_dep_type_path_length,test_dep_word_path_length, test_labels, model_out + '/')
