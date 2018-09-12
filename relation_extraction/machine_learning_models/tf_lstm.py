@@ -5,7 +5,6 @@ from sklearn import metrics
 
 seed(10)
 tf.set_random_seed(10)
-tf.contrib.summary
 
 def load_bin_vec(fname):
     """
@@ -101,7 +100,7 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
     dep_embedding_dimension = 50
     dep_state_size = 50
     num_labels = len(key_order)
-    num_epochs = 750
+    num_epochs = 250
     batch_size = 1024
 
     # build training dataset
@@ -242,8 +241,8 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
 
     with tf.name_scope("loss"):
         l2_loss = lambda_l2 * tf.reduce_sum([tf.nn.l2_loss(v) for v in tv_regu])
-        loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=batch_labels))
-        #loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=batch_labels)
+        #loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=batch_labels))
+        loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=batch_labels)
         total_loss = loss #+ l2_loss
 
     global_step = tf.Variable(0, name="global_step")
@@ -333,7 +332,7 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
 
     return save_path
 
-def lstm_test(test_dep_path_list_features,test_dep_word_features,test_dep_type_path_length,test_dep_word_path_length, test_labels,model_file):
+def lstm_test(test_features, test_labels,model_file):
     """
     test instances through lstm network
     :param test_features: list of test features
@@ -341,7 +340,10 @@ def lstm_test(test_dep_path_list_features,test_dep_word_features,test_dep_type_p
     :param model_file: path of trained lstm model
     :return: predicted probabilities and labels
     """
-
+    test_dep_path_list_features = test_features[0]
+    test_dep_word_features = test_features[1]
+    test_dep_type_path_length = test_features[2]
+    test_dep_word_path_length = test_features[3]
 
     dependency_ids = tf.placeholder(test_dep_path_list_features.dtype, test_dep_path_list_features.shape,
                                     name="dependency_ids")
@@ -360,7 +362,7 @@ def lstm_test(test_dep_path_list_features,test_dep_word_features,test_dep_type_p
     total_labels = np.array([])
     total_predicted_prob = np.array([])
     with tf.Session() as sess:
-        restored_model = tf.train.import_meta_graph(model_file + '.meta',clear_devices=True)
+        restored_model = tf.train.import_meta_graph(model_file + '.meta')
         restored_model.restore(sess, model_file)
         graph = tf.get_default_graph()
 
@@ -382,7 +384,7 @@ def lstm_test(test_dep_path_list_features,test_dep_word_features,test_dep_type_p
         predict_prob = graph.get_tensor_by_name('predict_prob:0')
         while True:
             try:
-                predicted_val, batch_labels = sess.run(
+                predicted_val, batch_features, batch_labels = sess.run(
                     [predict_prob, batch_labels_tensor],
                     feed_dict={iterator_handle: new_handle, keep_prob_tensor: 1.0})
                 total_labels = np.append(total_labels, batch_labels)
