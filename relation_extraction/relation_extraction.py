@@ -117,20 +117,23 @@ def test_lstm(model_out, abstract_folder, directional_distant_directory, symmetr
         print('error')
 
     # builds test_instances,features, and labels for LSTM model
-    test_instances, test_features, test_labels = load_data.build_LSTM_test_instances_from_directory(abstract_folder, entity_a, entity_b,
+    test_instances, test_dependency_ids,test_dependency_words,test_dep_type_path_length,test_dep_word_path_length, test_labels = load_data.build_LSTM_test_instances_from_directory(abstract_folder, entity_a, entity_b,
                                                                      dep_path_list_dictionary, dep_word_dictionary,
                                                                      distant_interactions,
                                                                      reverse_distant_interactions, key_order)
 
     print('test_instances')
     print(len(test_instances))
-
+    #print(test_features)
     # create np arrays
     test_labels = np.array(test_labels, dtype='float32')
-    test_features = np.array(test_features, dtype='float32')
+    test_dependency_ids = np.array(test_dependency_ids, dtype='int32')
+    test_dependency_words = np.array(test_dependency_words, dtype='int32')
+    test_dep_type_path_length = np.array(test_dep_type_path_length, dtype='int32')
+    test_dep_word_path_length = np.array(test_dep_word_path_length, dtype='int32')
 
     # tests instances for LSTM model
-    instance_predicts, predict_labels = lstm.lstm_test(test_features, test_labels, model_out + '/')
+    instance_predicts, predict_labels = lstm.lstm_test(test_dependency_ids,test_dependency_words,test_dep_type_path_length,test_dep_word_path_length, test_labels, model_out + '/')
     print(instance_predicts.shape)
     np.testing.assert_array_equal(test_labels, predict_labels)
 
@@ -435,7 +438,8 @@ def main():
         entity_a = sys.argv[9].upper()  # entity_a
         print(entity_a)
         entity_b = sys.argv[10].upper()  # entity_b
-        LSTM = bool(sys.argv[11]) # boolean to determine if you want to test LSTM or feed forward network
+        LSTM = sys.argv[11] # boolean to determine if you want to test LSTM or feed forward network
+        LSTM = LSTM == 'True'
 
 
         if LSTM is False:
