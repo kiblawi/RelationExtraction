@@ -219,12 +219,18 @@ def distant_train_lstm(model_out, abstract_folder, directional_distant_directory
     :param testing_abstracts: directory of test abstracts if you want test f1 score to appear during training
     :return: path of trained model
     """
+    supplemental_dict = {}
+    if ('ONTOLOGY' in entity_a or 'ONTOLOGY' in entity_b) and \
+            os.path.isfile(os.path.dirname(os.path.realpath(__file__)) + '/static_data/go-basic.obo'):
+        supplemental_dict = load_data.get_ontology_dictionary(os.path.dirname(os.path.realpath(__file__)) + '/static_data/go-basic.obo')
 
+
+    #print(ontology_dictionary)
     # load distant datsets for labelling
     distant_interactions, reverse_distant_interactions = load_data.load_distant_directories(directional_distant_directory,
                                                                                             symmetric_distant_directory,
                                                                                             distant_entity_a_col,
-                                                                                            distant_entity_b_col,distant_rel_col)
+                                                                                            distant_entity_b_col,distant_rel_col,supplemental_dict)
     # sort key order
     key_order = sorted(distant_interactions)
 
@@ -254,7 +260,7 @@ def distant_train_lstm(model_out, abstract_folder, directional_distant_directory
 
         if len(total_dataset_files) == 0:
             total_dataset_files = load_data.build_LSTM_instances_from_directory(abstract_folder, entity_a, entity_b, dep_type_list_dictionary, dep_word_dictionary,
-                                   distant_interactions, reverse_distant_interactions, key_order)
+                                   distant_interactions, reverse_distant_interactions, key_order,supplemental_dict)
 
     # builds or loads test tfrecord files if they exist
     total_test_files = None
@@ -268,7 +274,7 @@ def distant_train_lstm(model_out, abstract_folder, directional_distant_directory
             total_test_files = load_data.build_LSTM_instances_from_directory(testing_abstracts, entity_a, entity_b,
                                                                            dep_type_list_dictionary, dep_word_dictionary,
                                                                            distant_interactions,
-                                                                           reverse_distant_interactions, key_order)
+                                                                           reverse_distant_interactions, key_order,supplemental_dict)
 
     num_dep_types = len(dep_type_list_dictionary)
     num_path_words = len(dep_word_dictionary)

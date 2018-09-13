@@ -240,7 +240,7 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
     return candidate_instances, dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary
 
 def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary,
-                            distant_interactions,reverse_distant_interactions, key_order, entity_1_list =  None, entity_2_list = None,dep_path_type_dictionary=None):
+                            distant_interactions,reverse_distant_interactions, key_order,supplemental_dict ,dep_path_type_dictionary=None):
     """
     Builds instances for testing
     :param test_sentences:
@@ -263,28 +263,27 @@ def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictio
         for pair in entity_pairs:
             entity_1_token = test_sentence.get_token(pair[0][0])
             entity_2_token = test_sentence.get_token(pair[1][0])
-            entity_1 = entity_1_token.get_normalized_ner().split('|')
-            entity_2 = entity_2_token.get_normalized_ner().split('|')
+            entity_1_part = set(entity_1_token.get_normalized_ner().split('|'))
+            entity_2_part = set(entity_2_token.get_normalized_ner().split('|'))
+
+            entity_1 = set()
+            entity_2 = set()
+            for e in entity_1_part:
+                entity_1.add(e)
+                if e in supplemental_dict:
+                    entity_1 = entity_1.union(supplemental_dict[e])
+
+            for e in entity_2_part:
+                entity_2.add(e)
+                if e in supplemental_dict:
+                    entity_2 = entity_2.union(supplemental_dict[e])
+
 
             gene_to_gene = False
             if 'GENE' in entity_1_token.get_ner() and 'GENE' in entity_2_token.get_ner():
                 gene_to_gene = True
 
 
-            if entity_1_list is not None:
-                if len(set(entity_1).intersection(entity_1_list)) == 0:
-                    continue
-
-                # check if entity_2 overlaps with entity_1_list if so continue
-                if len(set(entity_2).intersection(entity_1_list)) > 0:
-                    continue
-
-            if entity_2_list is not None:
-                if len(set(entity_2).intersection(entity_2_list)) == 0:
-                    continue
-                #check if entity_1 overlaps with entity_2_list if so continue
-                if len(set(entity_1).intersection(entity_2_list)) > 0:
-                   continue
 
             entity_combos = set(itertools.product(entity_1,entity_2))
             forward_test_instance = Instance(test_sentence, pair[0], pair[1], [0] *len(key_order))
@@ -425,7 +424,7 @@ def load_xml(xml_file, entity_1, entity_2):
     return candidate_sentences, pmids
 
 
-def load_distant_kb(distant_kb_file, column_a, column_b,distant_rel_col):
+def load_distant_kb(distant_kb_file, column_a, column_b,distant_rel_col,supplemental_dict):
     """
     loads data from knowldege bases into tuples
     :param distant_kb_file:
@@ -443,11 +442,21 @@ def load_distant_kb(distant_kb_file, column_a, column_b,distant_rel_col):
     for l in lines:
         split_line = l.split('\t')
         #column_a is entity_1 column_b is entity 2
-        tuple = (split_line[column_a],split_line[column_b])
-        if split_line[distant_rel_col].endswith('by') is False:
-            distant_interactions.add(tuple)
+        entity_a = split_line[column_a]
+        entity_b = split_line[column_b]
+        if entity_a in supplemental_dict:
+            entity_a = set([entity_a]).union(supplemental_dict[entity_a])
         else:
-            reverse_distant_interactions.add(tuple)
+            entity_a = set([entity_a])
+        if entity_b in supplemental_dict:
+            entity_b = set([entity_b]).union(supplemental_dict[entity_b])
+        else:
+            entity_b = set([entity_b])
+        for tuple in set(itertools.product(entity_a,entity_b)):
+            if split_line[distant_rel_col].endswith('by') is False:
+                distant_interactions.add(tuple)
+            else:
+                reverse_distant_interactions.add(tuple)
 
     #returns both forward and backward tuples for relations
     return distant_interactions,reverse_distant_interactions
@@ -503,7 +512,8 @@ def load_abstracts_from_pickle(pickle_file):
     return abstract_dict
 
 
-def load_distant_directories(directional_distant_directory,symmetric_distant_directory,distant_entity_a_col,distant_entity_b_col,distant_rel_col):
+def load_distant_directories(directional_distant_directory,symmetric_distant_directory,distant_entity_a_col,
+                             distant_entity_b_col,distant_rel_col,supplemental_dict):
     """
     load distant directories
     :param directional_distant_directory:
@@ -519,7 +529,7 @@ def load_distant_directories(directional_distant_directory,symmetric_distant_dir
         if filename.endswith('.txt') is False:
             continue
         distant_interactions,reverse_distant_interactions = load_distant_kb(directional_distant_directory+'/'+filename,
-                                                                            distant_entity_a_col,distant_entity_b_col,distant_rel_col)
+                                                                            distant_entity_a_col,distant_entity_b_col,distant_rel_col,supplemental_dict)
         forward_dictionary[filename] = distant_interactions
         reverse_dictionary[filename] = reverse_distant_interactions
 
@@ -527,7 +537,7 @@ def load_distant_directories(directional_distant_directory,symmetric_distant_dir
         if filename.endswith('.txt') is False:
             continue
         distant_interactions,reverse_distant_interactions = load_distant_kb(symmetric_distant_directory+'/'+filename,
-                                                                            distant_entity_a_col,distant_entity_b_col,distant_rel_col)
+                                                                            distant_entity_a_col,distant_entity_b_col,distant_rel_col,supplemental_dict)
         forward_dictionary['SYMMETRIC'+filename] = distant_interactions
         reverse_dictionary['SYMMETRIC'+filename] = reverse_distant_interactions
 
@@ -682,7 +692,7 @@ def build_instances_from_directory(directory_folder, entity_a, entity_b, dep_dic
     return total_dataset
 
 def build_LSTM_instances_from_directory(directory_folder, entity_a, entity_b, dep_type_list_dictionary, dep_path_word_dictionary,
-                                        distant_interactions, reverse_distant_interactions, key_order):
+                                        distant_interactions, reverse_distant_interactions, key_order,supplemental_dict):
     """
     build lstm instances from directory of abstract sentences
     :param directory_folder:
@@ -705,7 +715,7 @@ def build_LSTM_instances_from_directory(directory_folder, entity_a, entity_b, de
                 xmlpath = os.path.join(path, name)
                 test_sentences, pmids = load_xml(xmlpath, entity_a, entity_b)
                 candidate_instances = build_instances_testing(test_sentences, None, dep_path_word_dictionary, None, None,
-                                                              distant_interactions, reverse_distant_interactions, key_order, entity_1_list =  None, entity_2_list = None,dep_path_type_dictionary=dep_type_list_dictionary)
+                                                              distant_interactions, reverse_distant_interactions, key_order, supplemental_dict,dep_path_type_dictionary=dep_type_list_dictionary)
 
                 dep_path_list_features = []
                 dep_word_features = []
@@ -807,3 +817,22 @@ def build_LSTM_test_instances_from_directory(directory_folder, entity_a, entity_
                     total_labels.append(ci.label)
 
     return total_instances,total_dep_id_features,total_dep_word_features,total_dep_id_length,total_dep_word_length,total_labels
+
+def get_ontology_dictionary(filename):
+    file = open(filename,'rU')
+    lines = file.readlines()
+    file.close()
+
+    ontology_dict = {}
+    id = ''
+    for l in range(len(lines)):
+        line = lines[l]
+        if line.startswith('id:'):
+            id = line.split()[1]
+            if id not in ontology_dict:
+                ontology_dict[id] = set()
+        if line.startswith('is_a'):
+            is_a = line.split()[1]
+            ontology_dict[id].add(is_a)
+
+    return ontology_dict
