@@ -244,6 +244,13 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
         loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=batch_labels))
         #loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=batch_labels)
         total_loss = loss #+ l2_loss
+        tf.summary.scalar('total_loss',total_loss)
+
+    correct_prediction = tf.equal(tf.round(prob_yhat), tf.round(batch_labels))
+    accuracy = tf.cast(correct_prediction, tf.float32)
+    tf.summary.tensor_summary('accuracy', accuracy)
+
+
 
     global_step = tf.Variable(0, name="global_step")
 
@@ -252,11 +259,13 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
     saver = tf.train.Saver()
     # Run training
     save_path = None
+    merged = tf.summary.merge_all()
     with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
         init = tf.global_variables_initializer()
         sess.run(init)
         saver = tf.train.Saver()
-        writer = tf.summary.FileWriter(model_dir, graph=tf.get_default_graph())
+        train_writer = tf.summary.FileWriter(model_dir + '/train', graph=tf.get_default_graph())
+        test_writer = tf.summary.FileWriter(model_dir + '/test')
         if word2vec_embeddings is not None:
             print('using word2vec embeddings')
             sess.run(embedding_init, feed_dict={embedding_placeholder: word2vec_embeddings})
@@ -277,11 +286,12 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
                     total_labels = np.array([])
                     while True:
                         try:
-                            predicted_class, b_labels = sess.run([class_yhat, batch_labels],
+                            summary,predicted_class, b_labels = sess.run([merged,class_yhat, batch_labels],
                                                                  feed_dict={iterator_handle: train_accuracy_handle,
                                                                             keep_prob: 1.0})
                             # print(predicted_val)
                             # total_labels = np.append(total_labels, batch_labels)
+                            train_writer.add_summary(summary)
                             total_predicted_prob = np.append(total_predicted_prob, predicted_class)
                             total_labels = np.append(total_labels, b_labels)
                         except tf.errors.OutOfRangeError:
@@ -303,8 +313,9 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
                         test_y_label_total = np.array([])
                         while True:
                             try:
-                                batch_test_predict, batch_test_labels = sess.run([class_yhat, batch_labels], feed_dict={
+                                summary, batch_test_predict, batch_test_labels = sess.run([merged,class_yhat, batch_labels], feed_dict={
                                     iterator_handle: test_handle, keep_prob: 1.0})
+                                test_writer.add_summary(summary)
                                 test_y_predict_total = np.append(test_y_predict_total, batch_test_predict)
                                 test_y_label_total = np.append(test_y_label_total, batch_test_labels)
                             except tf.errors.OutOfRangeError:
@@ -316,7 +327,7 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
                             column_true = test_y_label_total[:, l]
                             label_accuracy = metrics.f1_score(y_true=column_true, y_pred=column_l)
                             print("Epoch = %d,Test Label = %s: %.2f%% "
-                                  % (epoch + 1, key_order[l], 100. * label_accuracy))
+                                  % (epoch, key_order[l], 100. * label_accuracy))
 
                     epoch += 1
                     instance_count = 0

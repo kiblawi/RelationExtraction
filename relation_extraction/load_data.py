@@ -145,7 +145,7 @@ def feature_pruning(feature_dict,feature_count_tuples,prune_val):
 
     return feature_dict
 
-def build_instances_training(candidate_sentences, distant_interactions,reverse_distant_interactions,key_order, entity_1_list = None, entity_2_list = None):
+def build_instances_training(candidate_sentences, distant_interactions,reverse_distant_interactions,key_order, supplemental_dict):
     """
     Builds instances for training
     :param candidate_sentences: sentences
@@ -168,28 +168,24 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
         for pair in entity_pairs:
             entity_1_token = candidate_sentence.get_token(pair[0][0])
             entity_2_token = candidate_sentence.get_token(pair[1][0])
-            entity_1 = entity_1_token.get_normalized_ner().split('|')
-            entity_2 = entity_2_token.get_normalized_ner().split('|')
+            entity_1_part = set(entity_1_token.get_normalized_ner().split('|'))
+            entity_2_part = set(entity_2_token.get_normalized_ner().split('|'))
+
+            entity_1 = set()
+            entity_2 = set()
+            for e in entity_1_part:
+                entity_1.add(e)
+                if e in supplemental_dict:
+                    entity_1 = entity_1.union(supplemental_dict[e])
+
+            for e in entity_2_part:
+                entity_2.add(e)
+                if e in supplemental_dict:
+                    entity_2 = entity_2.union(supplemental_dict[e])
 
             gene_to_gene = False
             if 'GENE' in entity_1_token.get_ner() and 'GENE' in entity_2_token.get_ner():
                 gene_to_gene = True
-
-            if entity_1_list is not None:
-                if len(set(entity_1).intersection(entity_1_list)) == 0:
-                    continue
-
-                # check if entity_2 overlaps with entity_1_list if so continue
-                if len(set(entity_2).intersection(entity_1_list)) > 0:
-                    continue
-
-            if entity_2_list is not None:
-                if len(set(entity_2).intersection(entity_2_list)) == 0:
-                    continue
-
-                # check if entity_1 overlaps with entity_2_list if so continue
-                if len(set(entity_1).intersection(entity_2_list)) > 0:
-                    continue
 
             entity_combos = set(itertools.product(entity_1,entity_2))
 
@@ -649,7 +645,7 @@ def build_dictionaries_from_directory(directory_folder,entity_a,entity_b, entity
 
 
 def build_instances_from_directory(directory_folder, entity_a, entity_b, dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary,
-                                   distant_interactions, reverse_distant_interactions, key_order):
+                                   distant_interactions, reverse_distant_interactions, key_order,supplemental_dict):
     """
     build instances from directory of abstract sentences
     :param directory_folder:
@@ -674,7 +670,7 @@ def build_instances_from_directory(directory_folder, entity_a, entity_b, dep_dic
                 xmlpath = os.path.join(path, name)
                 test_sentences, pmids = load_xml(xmlpath, entity_a, entity_b)
                 candidate_instances = build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary,
-                            distant_interactions,reverse_distant_interactions, key_order, entity_1_list =  None, entity_2_list = None)
+                            distant_interactions,reverse_distant_interactions, key_order, supplemental_dict)
 
                 X = []
                 y = []
@@ -740,7 +736,7 @@ def build_LSTM_instances_from_directory(directory_folder, entity_a, entity_b, de
     return total_dataset
 
 def build_test_instances_from_directory(directory_folder, entity_a, entity_b, dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary,
-                                   distant_interactions, reverse_distant_interactions, key_order):
+                                   distant_interactions, reverse_distant_interactions, key_order,supplemental_dict):
     """
     build test instances from directory of abstract folders does not make tfrecord files
     :param directory_folder:
@@ -766,7 +762,7 @@ def build_test_instances_from_directory(directory_folder, entity_a, entity_b, de
                 xmlpath = os.path.join(path, name)
                 test_sentences, pmids = load_xml(xmlpath, entity_a, entity_b)
                 candidate_instances = build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictionary, dep_element_dictionary, between_word_dictionary,
-                            distant_interactions,reverse_distant_interactions, key_order, entity_1_list =  None, entity_2_list = None)
+                            distant_interactions,reverse_distant_interactions, key_order, supplemental_dict)
 
                 for ci in candidate_instances:
                     total_instances.append(ci)
@@ -776,7 +772,7 @@ def build_test_instances_from_directory(directory_folder, entity_a, entity_b, de
     return total_instances,total_features,total_labels
 
 def build_LSTM_test_instances_from_directory(directory_folder, entity_a, entity_b, dep_path_type_dictionary, dep_path_word_dictionary,
-                                   distant_interactions, reverse_distant_interactions, key_order):
+                                   distant_interactions, reverse_distant_interactions, key_order,supplemental_dict):
     """
     Build LSTM test instances from directory of abstract folders does not make tfrecord files
     :param directory_folder:
@@ -805,7 +801,7 @@ def build_LSTM_test_instances_from_directory(directory_folder, entity_a, entity_
                 candidate_instances = build_instances_testing(test_sentences, None, dep_path_word_dictionary, None,
                                                               None,
                                                               distant_interactions, reverse_distant_interactions,
-                                                              key_order, entity_1_list=None, entity_2_list=None,
+                                                              key_order, supplemental_dict,
                                                               dep_path_type_dictionary=dep_path_type_dictionary)
 
                 for ci in candidate_instances:

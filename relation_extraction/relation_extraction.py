@@ -99,12 +99,18 @@ def test_lstm(model_out, abstract_folder, directional_distant_directory, symmetr
     :return: True if successful
     """
 
+    supplemental_dict = {}
+    if ('ONTOLOGY' in entity_a or 'ONTOLOGY' in entity_b) and \
+            os.path.isfile(os.path.dirname(os.path.realpath(__file__)) + '/static_data/go-basic.obo'):
+        supplemental_dict = load_data.get_ontology_dictionary(
+            os.path.dirname(os.path.realpath(__file__)) + '/static_data/go-basic.obo')
+
     # loads distant datsets
     distant_interactions, reverse_distant_interactions = load_data.load_distant_directories(
         directional_distant_directory,
         symmetric_distant_directory,
         distant_entity_a_col,
-        distant_entity_b_col, distant_rel_col)
+        distant_entity_b_col, distant_rel_col,supplemental_dict)
 
     # sorts keys
     key_order = sorted(distant_interactions)
@@ -120,7 +126,7 @@ def test_lstm(model_out, abstract_folder, directional_distant_directory, symmetr
     test_instances, test_dependency_ids,test_dependency_words,test_dep_type_path_length,test_dep_word_path_length, test_labels = load_data.build_LSTM_test_instances_from_directory(abstract_folder, entity_a, entity_b,
                                                                      dep_path_list_dictionary, dep_word_dictionary,
                                                                      distant_interactions,
-                                                                     reverse_distant_interactions, key_order)
+                                                                     reverse_distant_interactions, key_order, supplemental_dict)
 
     print('test_instances')
     print(len(test_instances))
@@ -158,13 +164,18 @@ def test_feed_forward(model_out, abstract_folder, directional_distant_directory,
     :param entity_b: entity b in format id_type
     :return: true if successful
     """
+    supplemental_dict = {}
+    if ('ONTOLOGY' in entity_a or 'ONTOLOGY' in entity_b) and \
+            os.path.isfile(os.path.dirname(os.path.realpath(__file__)) + '/static_data/go-basic.obo'):
+        supplemental_dict = load_data.get_ontology_dictionary(
+            os.path.dirname(os.path.realpath(__file__)) + '/static_data/go-basic.obo')
 
     # loads distant directories for labelling instances
     distant_interactions, reverse_distant_interactions = load_data.load_distant_directories(
         directional_distant_directory,
         symmetric_distant_directory,
         distant_entity_a_col,
-        distant_entity_b_col, distant_rel_col)
+        distant_entity_b_col, distant_rel_col,supplemental_dict)
 
     # get order of elements for consistency
     key_order = sorted(distant_interactions)
@@ -186,7 +197,7 @@ def test_feed_forward(model_out, abstract_folder, directional_distant_directory,
                                                                        dep_dictionary, dep_word_dictionary,
                                                                        dep_element_dictionary, between_word_dictionary,
                                                                        distant_interactions,
-                                                                       reverse_distant_interactions, key_order)
+                                                                       reverse_distant_interactions, key_order,supplemental_dict)
     print('test_instances')
     print(len(test_instances))
 
@@ -303,6 +314,12 @@ def distant_train_feed_forward(model_out, abstract_folder, directional_distant_d
     :return: path of trained model
     """
 
+    supplemental_dict = {}
+    if ('ONTOLOGY' in entity_a or 'ONTOLOGY' in entity_b) and \
+            os.path.isfile(os.path.dirname(os.path.realpath(__file__)) + '/static_data/go-basic.obo'):
+        supplemental_dict = load_data.get_ontology_dictionary(
+            os.path.dirname(os.path.realpath(__file__)) + '/static_data/go-basic.obo')
+
     # get distant_relations from external knowledge base file
     print(directional_distant_directory)
     print(symmetric_distant_directory)
@@ -312,7 +329,7 @@ def distant_train_feed_forward(model_out, abstract_folder, directional_distant_d
     distant_interactions, reverse_distant_interactions = load_data.load_distant_directories(directional_distant_directory,
                                                                                             symmetric_distant_directory,
                                                                                             distant_entity_a_col,
-                                                                                            distant_entity_b_col,distant_rel_col)
+                                                                                            distant_entity_b_col,distant_rel_col,supplemental_dict)
 
     # sort key orders
     key_order = sorted(distant_interactions)
@@ -346,7 +363,7 @@ def distant_train_feed_forward(model_out, abstract_folder, directional_distant_d
         if len(total_dataset_files) == 0:
             total_dataset_files = load_data.build_instances_from_directory(abstract_folder, entity_a, entity_b, dep_dictionary, dep_word_dictionary,
                                    dep_element_dictionary, between_word_dictionary,
-                                   distant_interactions, reverse_distant_interactions, key_order)
+                                   distant_interactions, reverse_distant_interactions, key_order,supplemental_dict)
 
     # sets hidden array for hidden layers
     hidden_array = []
