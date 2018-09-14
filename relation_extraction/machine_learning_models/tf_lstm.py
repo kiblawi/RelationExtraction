@@ -100,7 +100,7 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
     dep_embedding_dimension = 50
     dep_state_size = 50
     num_labels = len(key_order)
-    num_epochs = 750
+    num_epochs = 500
     batch_size = 1024
 
     # build training dataset
@@ -247,8 +247,8 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
         tf.summary.scalar('total_loss',total_loss)
 
     correct_prediction = tf.equal(tf.round(prob_yhat), tf.round(batch_labels))
-    accuracy = tf.cast(correct_prediction, tf.float32)
-    tf.summary.tensor_summary('accuracy', accuracy)
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+    tf.summary.scalar('accuracy', accuracy)
 
 
 
