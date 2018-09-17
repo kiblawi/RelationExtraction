@@ -879,18 +879,15 @@ def get_sentence_data_from_directory(directory_folder, entity_a, entity_b, suppl
                             if e in supplemental_dict:
                                 entity_2 = entity_2.union(supplemental_dict[e])
 
-                        gene_to_gene = False
-                        if 'GENE' in entity_1_token.get_ner() and 'GENE' in entity_2_token.get_ner():
-                            gene_to_gene = True
 
-                        entity_combos = set(itertools.product(entity_1, entity_2))
-                        for e in entity_combos:
-                            if e[0] not in entity_1_dict:
-                                entity_1_dict[e[0]]= 0
-                            entity_1_dict[e[0]]+=1
-                            if e[1] not in entity_2_dict:
-                                entity_2_dict[e[1]]=0
-                            entity_2_dict[e[1]]+=1
+                        for e in entity_1:
+                            if e not in entity_1_dict:
+                                entity_1_dict[e]= 0
+                            entity_1_dict[e]+=1
+                        for e in entity_2:
+                            if e not in entity_2_dict:
+                                entity_2_dict[e]=0
+                            entity_2_dict[e]+=1
 
 
 
