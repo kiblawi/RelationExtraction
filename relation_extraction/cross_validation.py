@@ -83,12 +83,12 @@ def parallel_k_fold_cross_validation(batch_id, k, pmids, candidate_sentences, di
     fold_test_y = np.array(fold_test_labels)
 
 
-    test_model = nn.neural_network_train(fold_train_X,
-                                         fold_train_y,
-                                         fold_test_X,
-                                         fold_test_y,
-                                         hidden_array,
-                                         model_dir + '/', key_order)
+    test_model = nn.feed_forward_train(fold_train_X,
+                                       fold_train_y,
+                                       fold_test_X,
+                                       fold_test_y,
+                                       hidden_array,
+                                       model_dir + '/', key_order)
 
 
     fold_test_predicted_prob = nn.neural_network_test_tfrecord(fold_test_X, fold_test_y, test_model)

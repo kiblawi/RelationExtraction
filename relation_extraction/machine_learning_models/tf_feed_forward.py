@@ -5,6 +5,7 @@ from sklearn import metrics
 
 seed(10)
 tf.set_random_seed(10)
+tf.contrib.summary
 
 def parse(serialized_example):
     """
@@ -60,7 +61,7 @@ def feed_forward(input_tensor, num_hidden_layers, weights, biases,keep_prob):
     return out_layer_bias_addition
 
 
-def neural_network_train(train_dataset_files, hidden_array, model_dir, num_features, key_order, test_dataset_files=None):
+def feed_forward_train(train_dataset_files, hidden_array, model_dir, num_features, key_order, test_dataset_files=None):
     """
     trains feed forward neural network
     :param train_dataset_files: list dataset files (.tfrecord)
@@ -89,19 +90,27 @@ def neural_network_train(train_dataset_files, hidden_array, model_dir, num_featu
     tf.reset_default_graph()
 
     # network parameters
-    num_epochs=250
     num_labels = len(key_order)
+    num_epochs = 500
+    batch_size = 1024
     num_hidden_layers = len(hidden_array)
 
-    # build dataset
+    # build training dataset
     dataset = tf.data.TFRecordDataset(train_dataset_files)
-    dataset = dataset.shuffle(10000)
-    dataset = dataset.map(parse, num_parallel_calls=8)
-    dataset = dataset.batch(256)
-    dataset.prefetch(1)
+    dataset = dataset.map(parse, num_parallel_calls=64).prefetch(batch_size * 100)
+    dataset = dataset.repeat(num_epochs).prefetch(batch_size * 100)
+    dataset = dataset.shuffle(batch_size * 50).prefetch(buffer_size=batch_size * 100)
+    dataset = dataset.batch(batch_size)
+    dataset = dataset.prefetch(5)
 
-    # build iterator for dataset
-    iterator_handle = tf.placeholder(tf.string, shape=[],name='iterator_handle')
+    # build training dataset
+    training_accuracy_dataset = tf.data.TFRecordDataset(train_dataset_files)
+    training_accuracy_dataset = training_accuracy_dataset.map(parse, num_parallel_calls=64).prefetch(batch_size * 100)
+    training_accuracy_dataset = training_accuracy_dataset.batch(batch_size)  # batch size
+    training_accuracy_dataset = training_accuracy_dataset.prefetch(5)
+
+    # build iterator
+    iterator_handle = tf.placeholder(tf.string, shape=[], name='iterator_handle')
     iterator = tf.data.Iterator.from_string_handle(
         iterator_handle,
         dataset.output_types,
@@ -110,6 +119,7 @@ def neural_network_train(train_dataset_files, hidden_array, model_dir, num_featu
 
     # builds training set iterator
     train_iter = dataset.make_initializable_iterator()
+    train_accuracy_iter = training_accuracy_dataset.make_initializable_iterator()
 
     # get test dataset information and build test dataset
     if test_dataset_files is not None:
@@ -151,75 +161,95 @@ def neural_network_train(train_dataset_files, hidden_array, model_dir, num_featu
     class_yhat = tf.to_int32(prob_yhat > 0.5, name='class_predict')
 
     #calculate cost and update network via backpropogation with gradientdescent
-    cost = tf.nn.sigmoid_cross_entropy_with_logits(labels=batch_labels, logits=yhat)
+    cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels=batch_labels, logits=yhat))
+    tf.summary.scalar('cost', cost)
     updates = tf.train.GradientDescentOptimizer(0.01).minimize(cost)
+
+    correct_prediction = tf.equal(tf.round(prob_yhat), tf.round(batch_labels))
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+    tf.summary.scalar('accuracy', accuracy)
 
     saver = tf.train.Saver()
     # Run stochastic gradient descent
     save_path = None
+    merged = tf.summary.merge_all()
     with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
         init = tf.global_variables_initializer()
         sess.run(init)
         saver = tf.train.Saver()
-        writer = tf.summary.FileWriter(model_dir, graph=tf.get_default_graph())
-        for epoch in range(num_epochs):
-            train_handle = sess.run(train_iter.string_handle())
-            sess.run(train_iter.initializer)
-            print("epoch: ", epoch)
-            while True:
-                try:
-                    u = sess.run([updates], feed_dict={iterator_handle: train_handle, keep_prob: 0.5})
-                except tf.errors.OutOfRangeError:
-                    break
+        train_writer = tf.summary.FileWriter(model_dir + '/train', graph=tf.get_default_graph())
+        test_writer = tf.summary.FileWriter(model_dir + '/test')
+        train_handle = sess.run(train_iter.string_handle())
+        sess.run(train_iter.initializer)
 
-            # restart iterator for training eval
-            train_handle = sess.run(train_iter.string_handle())
-            sess.run(train_iter.initializer)
-            total_predicted_prob = np.array([])
-            total_labels = np.array([])
-            while True:
-                try:
-                    predicted_class, b_labels = sess.run([class_yhat, batch_labels],
-                                                         feed_dict={iterator_handle: train_handle, keep_prob: 1.0})
-                    total_predicted_prob = np.append(total_predicted_prob, predicted_class)
-                    total_labels = np.append(total_labels, b_labels)
-                except tf.errors.OutOfRangeError:
-                    break
+        epoch = 0
+        instance_count = 0
+        while True:
+            try:
+                u, tl = sess.run([updates, cost], feed_dict={iterator_handle: train_handle, keep_prob: 0.5})
+                instance_count += batch_size
+                if instance_count > training_instances_count:
+                    train_accuracy_handle = sess.run(train_accuracy_iter.string_handle())
+                    sess.run(train_accuracy_iter.initializer)
+                    total_predicted_prob = np.array([])
+                    total_labels = np.array([])
+                    print('loss: %f', tl)
+                    while True:
+                        try:
+                            summary, predicted_class, b_labels = sess.run([merged, class_yhat, batch_labels],
+                                                                          feed_dict={
+                                                                              iterator_handle: train_accuracy_handle,
+                                                                              keep_prob: 1.0})
+                            # print(predicted_val)
+                            # total_labels = np.append(total_labels, batch_labels)
+                            train_writer.add_summary(summary)
+                            total_predicted_prob = np.append(total_predicted_prob, predicted_class)
+                            total_labels = np.append(total_labels, b_labels)
+                        except tf.errors.OutOfRangeError:
+                            break
+                    total_predicted_prob = total_predicted_prob.reshape((training_instances_count, num_labels))
+                    total_labels = total_labels.reshape((training_instances_count, num_labels))
+                    for l in range(len(key_order)):
+                        column_l = total_predicted_prob[:, l]
+                        column_true = total_labels[:, l]
+                        label_accuracy = metrics.f1_score(y_true=column_true, y_pred=column_l)
+                        print("Epoch = %d,Label = %s: %.2f%% "
+                              % (epoch, key_order[l], 100. * label_accuracy))
 
-            total_predicted_prob = total_predicted_prob.reshape((training_instances_count, num_labels))
-            total_labels = total_labels.reshape((training_instances_count, num_labels))
-            for l in range(len(key_order)):
-                column_l = total_predicted_prob[:, l]
-                column_true = total_labels[:, l]
-                label_accuracy = metrics.f1_score(y_true=column_true, y_pred=column_l)
-                print("Epoch = %d,Label = %s: %.2f%% "
-                      % (epoch + 1, key_order[l], 100. * label_accuracy))
+                    if test_dataset_files is not None:
+                        test_handle = sess.run(test_iter.string_handle())
+                        sess.run(test_iter.initializer)
+                        test_y_predict_total = np.array([])
+                        test_y_label_total = np.array([])
+                        while True:
+                            try:
+                                summary, batch_test_predict, batch_test_labels = sess.run(
+                                    [merged, class_yhat, batch_labels], feed_dict={
+                                        iterator_handle: test_handle, keep_prob: 1.0})
+                                test_writer.add_summary(summary)
+                                test_y_predict_total = np.append(test_y_predict_total, batch_test_predict)
+                                test_y_label_total = np.append(test_y_label_total, batch_test_labels)
+                            except tf.errors.OutOfRangeError:
+                                break
+                        test_y_predict_total = test_y_predict_total.reshape((test_instances_count, 1))
+                        test_y_label_total = test_y_label_total.reshape((test_instances_count, 1))
+                        for l in range(len(key_order)):
+                            column_l = test_y_predict_total[:, l]
+                            column_true = test_y_label_total[:, l]
+                            label_accuracy = metrics.f1_score(y_true=column_true, y_pred=column_l)
+                            print("Epoch = %d,Test Label = %s: %.2f%% "
+                                  % (epoch, key_order[l], 100. * label_accuracy))
 
-            # iterator for test set
-            if test_dataset_files is not None:
-                test_handle = sess.run(test_iter.string_handle())
-                sess.run(test_iter.initializer)
-                test_y_predict_total = np.array([])
-                test_y_label_total = np.array([])
-                while True:
-                    try:
-                        batch_test_predict, batch_test_labels = sess.run([class_yhat, batch_labels],
-                                                                         feed_dict={iterator_handle: test_handle,
-                                                                                    keep_prob: 1.0})
-                        test_y_predict_total = np.append(test_y_predict_total, batch_test_predict)
-                        test_y_label_total = np.append(test_y_label_total, batch_test_labels)
-                    except tf.errors.OutOfRangeError:
-                        break
-                test_y_predict_total = test_y_predict_total.reshape((test_instances_count, 1))
-                test_y_label_total = test_y_label_total.reshape((test_instances_count, 1))
-                test_accuracy = metrics.f1_score(y_true=test_y_label_total, y_pred=test_y_predict_total)
-                for l in range(len(key_order)):
-                    column_l = test_y_predict_total[:, l]
-                    column_true = test_y_label_total[:, l]
-                    label_accuracy = metrics.f1_score(y_true=column_true, y_pred=column_l)
-                    print("Epoch = %d,Test Label = %s: %.2f%% "
-                          % (epoch + 1, key_order[l], 100. * label_accuracy))
-            save_path = saver.save(sess, model_dir)
+                    epoch += 1
+                    instance_count = 0
+                    train_handle = sess.run(train_iter.string_handle())
+                    save_path = saver.save(sess, model_dir)
+
+
+            except tf.errors.OutOfRangeError:
+                break
+
+        save_path = saver.save(sess, model_dir)
 
     return save_path
 
@@ -255,7 +285,7 @@ def neural_network_test_tfrecord(total_dataset_files, model_file):
     total_predicted_prob = np.array([])
 
     with tf.Session() as sess:
-        restored_model = tf.train.import_meta_graph(model_file + '.meta')
+        restored_model = tf.train.import_meta_graph(model_file + '.meta',clear_devices=True)
         restored_model.restore(sess,model_file)
         graph =tf.get_default_graph()
         iterator_handle = graph.get_tensor_by_name('iterator_handle:0')
@@ -293,7 +323,7 @@ def neural_network_test(features, labels, model_file):
     total_labels = np.array([])
 
     with tf.Session() as sess:
-        restored_model = tf.train.import_meta_graph(model_file + '.meta')
+        restored_model = tf.train.import_meta_graph(model_file + '.meta',clear_devices=True)
         restored_model.restore(sess,model_file)
         graph = tf.get_default_graph()
         tensor_names = [t.name for op in graph.get_operations() for t in op.values()]
@@ -329,7 +359,7 @@ def neural_network_predict(predict_features,model_file):
     :return:
     """
     with tf.Session() as sess:
-        restored_model = tf.train.import_meta_graph(model_file + '.meta')
+        restored_model = tf.train.import_meta_graph(model_file + '.meta',clear_devices=True)
         restored_model.restore(sess,model_file)
         graph = tf.get_default_graph()
         input_tensor = graph.get_tensor_by_name('input:0')

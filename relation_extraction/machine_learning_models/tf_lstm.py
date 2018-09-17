@@ -149,8 +149,6 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
         test_iter = test_dataset.make_initializable_iterator()
 
 
-
-
     #maximum_length_path = tf.shape(batch_dependency_ids)[1]
 
     # keep probability for dropout layers
@@ -204,12 +202,7 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
         state_series, current_state = cell(tf.transpose(embedded_word_drop,[1,0,2]), initial_state=word_init_state,
                                            sequence_length=batch_dep_word_length)
         state_series_word = tf.reduce_max(state_series, axis=0)
-        '''
-        cell = tf.contrib.cudnn_rnn.CudnnCompatibleLSTMCell(word_state_size)
-        state_series, current_state = tf.nn.dynamic_rnn(cell, embedded_word_drop, sequence_length=batch_dep_word_length,
-                                                        initial_state=word_init_state)
-        state_series_word = tf.reduce_max(state_series, axis=1)
-        '''
+
     state_series = tf.concat([state_series_dep, state_series_word], 1)
 
     # hidden layer for classification
@@ -243,8 +236,7 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
     with tf.name_scope("loss"):
         l2_loss = lambda_l2 * tf.reduce_sum([tf.nn.l2_loss(v) for v in tv_regu])
         loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=batch_labels))
-        #loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=batch_labels)
-        total_loss = loss #+ l2_loss
+        total_loss = loss + l2_loss
         tf.summary.scalar('total_loss',total_loss)
 
     correct_prediction = tf.equal(tf.round(prob_yhat), tf.round(batch_labels))

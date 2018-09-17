@@ -385,7 +385,7 @@ def distant_train_feed_forward(model_out, abstract_folder, directional_distant_d
                                                                            reverse_distant_interactions, key_order)
 
     # trains feef forward neural network model
-    trained_model_path = nn.neural_network_train(total_dataset_files, hidden_array, model_out + '/', num_features, key_order, total_test_files)
+    trained_model_path = nn.feed_forward_train(total_dataset_files, hidden_array, model_out + '/', num_features, key_order, total_test_files)
 
 
     return trained_model_path
