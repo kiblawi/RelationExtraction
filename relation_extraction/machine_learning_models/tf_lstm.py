@@ -235,7 +235,7 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
 
     with tf.name_scope("loss"):
         l2_loss = lambda_l2 * tf.reduce_sum([tf.nn.l2_loss(v) for v in tv_regu])
-        loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=batch_labels))
+        loss = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=batch_labels))
         total_loss = loss + l2_loss
         tf.summary.scalar('total_loss',total_loss)
 

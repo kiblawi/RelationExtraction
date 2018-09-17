@@ -161,7 +161,7 @@ def feed_forward_train(train_dataset_files, hidden_array, model_dir, num_feature
     class_yhat = tf.to_int32(prob_yhat > 0.5, name='class_predict')
 
     #calculate cost and update network via backpropogation with gradientdescent
-    cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels=batch_labels, logits=yhat))
+    cost = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(labels=batch_labels, logits=yhat))
     tf.summary.scalar('cost', cost)
     updates = tf.train.GradientDescentOptimizer(0.01).minimize(cost)
 
