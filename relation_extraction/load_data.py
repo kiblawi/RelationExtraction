@@ -719,7 +719,10 @@ def build_LSTM_instances_from_directory(directory_folder, entity_a, entity_b, de
                 dep_word_path_length = []
                 labels = []
                 instance_sentences = set()
+                entity_a_dict = {}
+                entity_b_dict = {}
                 for t in candidate_instances:
+
                     # instance_sentences.add(' '.join(t.sentence.sentence_words))
                     dep_path_list_features.append(t.features[0:100])
                     dep_word_features.append(t.features[100:200])
@@ -832,3 +835,65 @@ def get_ontology_dictionary(filename):
             ontology_dict[id].add(is_a)
 
     return ontology_dict
+
+def get_sentence_data_from_directory(directory_folder, entity_a, entity_b, supplemental_dict):
+    """
+    Build LSTM test instances from directory of abstract folders does not make tfrecord files
+    :param directory_folder:
+    :param entity_a:
+    :param entity_b:
+    :param dep_path_type_dictionary:
+    :param dep_path_word_dictionary:
+    :param distant_interactions:
+    :param reverse_distant_interactions:
+    :param key_order:
+    :return:
+    """
+
+    entity_1_dict = {}
+    entity_2_dict = {}
+    for path, subdirs, files in os.walk(directory_folder):
+        for name in files:
+            if name.endswith('.txt'):
+                #print(name)
+                xmlpath = os.path.join(path, name)
+                test_sentences, pmids = load_xml(xmlpath, entity_a, entity_b)
+                for test_sentence in test_sentences:
+                    entity_pairs = test_sentence.get_entity_pairs()
+
+                    for pair in entity_pairs:
+                        entity_1_token = test_sentence.get_token(pair[0][0])
+                        entity_2_token = test_sentence.get_token(pair[1][0])
+                        entity_1_part = set(entity_1_token.get_normalized_ner().split('|'))
+                        entity_2_part = set(entity_2_token.get_normalized_ner().split('|'))
+
+                        entity_1 = set()
+                        entity_2 = set()
+                        for e in entity_1_part:
+                            entity_1.add(e)
+                            if e in supplemental_dict:
+                                entity_1 = entity_1.union(supplemental_dict[e])
+
+                        for e in entity_2_part:
+                            entity_2.add(e)
+                            if e in supplemental_dict:
+                                entity_2 = entity_2.union(supplemental_dict[e])
+
+                        gene_to_gene = False
+                        if 'GENE' in entity_1_token.get_ner() and 'GENE' in entity_2_token.get_ner():
+                            gene_to_gene = True
+
+                        entity_combos = set(itertools.product(entity_1, entity_2))
+                        for e in entity_combos:
+                            if e[0] not in entity_1_dict:
+                                entity_1_dict[e[0]]= 0
+                            entity_1_dict[e[0]]+=1
+                            if e[1] not in entity_2_dict:
+                                entity_2_dict[e[1]]=0
+                            entity_2_dict[e[1]]+=1
+
+
+
+
+
+    return entity_1_dict,entity_2_dict

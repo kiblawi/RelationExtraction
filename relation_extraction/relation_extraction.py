@@ -8,6 +8,7 @@ import collections
 import shutil
 import pickle
 import time
+import operator
 
 from machine_learning_models import tf_feed_forward as nn
 from machine_learning_models import tf_lstm as lstm
@@ -210,6 +211,41 @@ def test_feed_forward(model_out, abstract_folder, directional_distant_directory,
     np.testing.assert_array_equal(test_labels,predict_labels)
 
     write_output(model_out + '_test_predictions', instance_predicts, predict_labels, test_instances, key_order)
+
+    return True
+
+def evaluate_data(model_out, abstract_folder, directional_distant_directory, symmetric_distant_directory,
+                       distant_entity_a_col, distant_entity_b_col, distant_rel_col, entity_a, entity_b):
+    supplemental_dict = {}
+    if ('ONTOLOGY' in entity_a or 'ONTOLOGY' in entity_b) and \
+            os.path.isfile(os.path.dirname(os.path.realpath(__file__)) + '/static_data/go-basic.obo'):
+        supplemental_dict = load_data.get_ontology_dictionary(
+            os.path.dirname(os.path.realpath(__file__)) + '/static_data/go-basic.obo')
+
+    # print(ontology_dictionary)
+    # load distant datsets for labelling
+    distant_interactions, reverse_distant_interactions = load_data.load_distant_directories(
+        directional_distant_directory,
+        symmetric_distant_directory,
+        distant_entity_a_col,
+        distant_entity_b_col, distant_rel_col, supplemental_dict)
+    # sort key order
+    key_order = sorted(distant_interactions)
+
+    entity_a_dict,entity_b_dict = load_data.get_sentence_data_from_directory(abstract_folder,entity_a, entity_b, supplemental_dict)
+
+    sorted_entity_a_dict = sorted(entity_a_dict.items(), key=operator.itemgetter(1))
+    sorted_entity_b_dict = sorted(entity_b_dict.items(), key=operator.itemgetter(1))
+
+    file = open(model_out+'_entity_a_distrib.txt','w')
+    for s in sorted_entity_a_dict:
+        file.write(s[0]+'\t'+str(s[1])+'\n')
+    file.close()
+
+    file = open(model_out + '_entity_b_distrib.txt', 'w')
+    for s in sorted_entity_b_dict:
+        file.write(s[0] + '\t' + str(s[1]) + '\n')
+    file.close()
 
     return True
 
@@ -447,6 +483,27 @@ def main():
 
 
         print(trained_model_path)
+
+    elif "EVAL_DATA" in mode.upper():
+        model_out = sys.argv[2]  # location of where model should be saved after training
+        abstract_folder = sys.argv[3]  # xml file of sentences from Stanford Parser
+        directional_distant_directory = sys.argv[4]  # distant supervision knowledge base to use
+        symmetric_distant_directory = sys.argv[5]
+        distant_entity_a_col = int(sys.argv[6])  # entity 1 column
+        distant_entity_b_col = int(sys.argv[7])  # entity 2 column
+        print(distant_entity_b_col)
+        distant_rel_col = int(sys.argv[8])  # relation column
+        print(distant_rel_col)
+        entity_a = sys.argv[9].upper()  # entity_a
+        print(entity_a)
+        entity_b = sys.argv[10].upper()  # entity_b
+
+        evaluated_data = evaluate_data(model_out, abstract_folder, directional_distant_directory,
+                           symmetric_distant_directory,
+                           distant_entity_a_col, distant_entity_b_col, distant_rel_col, entity_a,
+                           entity_b)
+
+
 
     elif "TEST" in mode.upper(): # tests folder of .xml files
         model_out = sys.argv[2]  # location of where model should be saved after training
