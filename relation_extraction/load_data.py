@@ -864,21 +864,8 @@ def get_sentence_data_from_directory(directory_folder, entity_a, entity_b, suppl
                     for pair in entity_pairs:
                         entity_1_token = test_sentence.get_token(pair[0][0])
                         entity_2_token = test_sentence.get_token(pair[1][0])
-                        entity_1_part = set(entity_1_token.get_normalized_ner().split('|'))
-                        entity_2_part = set(entity_2_token.get_normalized_ner().split('|'))
-
-                        entity_1 = set()
-                        entity_2 = set()
-                        for e in entity_1_part:
-                            entity_1.add(e)
-                            if e in supplemental_dict:
-                                entity_1 = entity_1.union(supplemental_dict[e])
-
-                        for e in entity_2_part:
-                            entity_2.add(e)
-                            if e in supplemental_dict:
-                                entity_2 = entity_2.union(supplemental_dict[e])
-
+                        entity_1 = set(entity_1_token.get_normalized_ner().split('|'))
+                        entity_2 = set(entity_2_token.get_normalized_ner().split('|'))
 
                         for e in entity_1:
                             if e not in entity_1_dict:
@@ -888,9 +875,5 @@ def get_sentence_data_from_directory(directory_folder, entity_a, entity_b, suppl
                             if e not in entity_2_dict:
                                 entity_2_dict[e]=0
                             entity_2_dict[e]+=1
-
-
-
-
 
     return entity_1_dict,entity_2_dict
