@@ -101,7 +101,7 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
     dep_embedding_dimension = 50
     dep_state_size = 50
     num_labels = len(key_order)
-    num_epochs = 500
+    num_epochs = 250
     batch_size = 1024
 
     # build training dataset
