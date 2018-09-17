@@ -5,6 +5,7 @@ from sklearn import metrics
 
 seed(10)
 tf.set_random_seed(10)
+tf.contrib.summary
 
 def load_bin_vec(fname):
     """
