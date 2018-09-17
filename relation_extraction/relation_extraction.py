@@ -382,7 +382,7 @@ def distant_train_feed_forward(model_out, abstract_folder, directional_distant_d
                                                                            dep_element_dictionary,
                                                                            between_word_dictionary,
                                                                            distant_interactions,
-                                                                           reverse_distant_interactions, key_order)
+                                                                           reverse_distant_interactions, key_order,supplemental_dict)
 
     # trains feef forward neural network model
     trained_model_path = nn.feed_forward_train(total_dataset_files, hidden_array, model_out + '/', num_features, key_order, total_test_files)
