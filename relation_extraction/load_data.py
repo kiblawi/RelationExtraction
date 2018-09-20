@@ -166,22 +166,10 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
         entity_pairs = candidate_sentence.get_entity_pairs()
 
         for pair in entity_pairs:
-            entity_1_token = candidate_sentence.get_token(pair[0][0])
-            entity_2_token = candidate_sentence.get_token(pair[1][0])
-            entity_1_part = set(entity_1_token.get_normalized_ner().split('|'))
-            entity_2_part = set(entity_2_token.get_normalized_ner().split('|'))
-
-            entity_1 = set()
-            entity_2 = set()
-            for e in entity_1_part:
-                entity_1.add(e)
-                if e in supplemental_dict:
-                    entity_1 = entity_1.union(supplemental_dict[e])
-
-            for e in entity_2_part:
-                entity_2.add(e)
-                if e in supplemental_dict:
-                    entity_2 = entity_2.union(supplemental_dict[e])
+            entity_1_token = test_sentence.get_token(pair[0][0])
+            entity_2_token = test_sentence.get_token(pair[1][0])
+            entity_1 = set(entity_1_token.get_normalized_ner().split('|'))
+            entity_2 = set(entity_2_token.get_normalized_ner().split('|'))
 
             gene_to_gene = False
             if 'GENE' in entity_1_token.get_ner() and 'GENE' in entity_2_token.get_ner():
@@ -259,20 +247,8 @@ def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictio
         for pair in entity_pairs:
             entity_1_token = test_sentence.get_token(pair[0][0])
             entity_2_token = test_sentence.get_token(pair[1][0])
-            entity_1_part = set(entity_1_token.get_normalized_ner().split('|'))
-            entity_2_part = set(entity_2_token.get_normalized_ner().split('|'))
-
-            entity_1 = set()
-            entity_2 = set()
-            for e in entity_1_part:
-                entity_1.add(e)
-                if e in supplemental_dict:
-                    entity_1 = entity_1.union(supplemental_dict[e])
-
-            for e in entity_2_part:
-                entity_2.add(e)
-                if e in supplemental_dict:
-                    entity_2 = entity_2.union(supplemental_dict[e])
+            entity_1 = set(entity_1_token.get_normalized_ner().split('|'))
+            entity_2 = set(entity_2_token.get_normalized_ner().split('|'))
 
 
             gene_to_gene = False
