@@ -817,6 +817,15 @@ def build_LSTM_test_instances_from_directory(directory_folder, entity_a, entity_
 
     return total_instances,total_dep_id_features,total_dep_word_features,total_dep_id_length,total_dep_word_length,total_labels
 
+def ontology_recurse(term,path,ontology_dict):
+    if term == 'GO:0008150' or term == 'GO:0005575' or term =='GO:0003674':
+        return path
+    path.add(term)
+    for t in ontology_dict[term]:
+        path = ontology_recurse(t,path,ontology_dict)
+    return path
+
+
 def get_ontology_dictionary(filename):
     file = open(filename,'rU')
     lines = file.readlines()
@@ -834,7 +843,13 @@ def get_ontology_dictionary(filename):
             is_a = line.split()[1]
             ontology_dict[id].add(is_a)
 
-    return ontology_dict
+    path_dict = {}
+    for o in ontology_dict:
+        path = set()
+        path = ontology_recurse(o, path, ontology_dict)
+        path_dict[o] = path
+
+    return path_dict
 
 def get_sentence_data_from_directory(directory_folder, entity_a, entity_b, supplemental_dict):
     """
