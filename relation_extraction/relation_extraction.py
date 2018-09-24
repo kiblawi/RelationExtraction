@@ -239,12 +239,12 @@ def evaluate_data(model_out, abstract_folder, directional_distant_directory, sym
 
     file = open(model_out+'_entity_a_distrib.txt','w')
     for s in sorted_entity_a_dict:
-        file.write(s[0]+'\t'+str(s[1])+'\n')
+        file.write(s[0].encode('utf-8') +'\t'+str(s[1])+'\n')
     file.close()
 
     file = open(model_out + '_entity_b_distrib.txt', 'w')
     for s in sorted_entity_b_dict:
-        file.write(s[0] + '\t' + str(s[1]) + '\n')
+        file.write(s[0].encode('utf-8') + '\t' + str(s[1]) + '\n')
     file.close()
 
     return True
