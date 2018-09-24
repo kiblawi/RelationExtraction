@@ -859,12 +859,12 @@ def get_sentence_data_from_directory(directory_folder, entity_a, entity_b, suppl
                         entity_2 = set(entity_2_token.get_normalized_ner().split('|'))
 
                         for e in entity_1:
-                            if e not in entity_1_dict:
-                                entity_1_dict[e]= 0
-                            entity_1_dict[e]+=1
+                            if  e+'|'+ entity_1_token.lemma not in entity_1_dict:
+                                entity_1_dict[e+'|'+entity_1_token.lemma]= 0
+                            entity_1_dict[e+'|'+entity_1_token.lemma]+=1
                         for e in entity_2:
-                            if e not in entity_2_dict:
-                                entity_2_dict[e]=0
-                            entity_2_dict[e]+=1
+                            if e+'|'+entity_2_token.lemma not in entity_2_dict:
+                                entity_2_dict[e+'|'+entity_2_token.lemma]=0
+                            entity_2_dict[e+'|'+entity_2_token.lemma]+=1
 
     return entity_1_dict,entity_2_dict
