@@ -7,6 +7,7 @@ seed(10)
 tf.set_random_seed(10)
 tf.contrib.summary
 
+os.environ["CUDA_VISIBLE_DEVICES"]="1"
 def parse(serialized_example):
     """
     parses tfrecord file and reads it into memory
@@ -173,7 +174,10 @@ def feed_forward_train(train_dataset_files, hidden_array, model_dir, num_feature
     # Run stochastic gradient descent
     save_path = None
     merged = tf.summary.merge_all()
-    with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
+
+    config = tf.ConfigProto(log_device_placement=True)
+    config.gpu_options.allow_growth = True
+    with tf.Session(config=config) as sess:
         init = tf.global_variables_initializer()
         sess.run(init)
         saver = tf.train.Saver()
