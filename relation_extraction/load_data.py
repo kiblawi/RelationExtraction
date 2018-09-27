@@ -157,6 +157,8 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
     :return:
     """
     # initialize vocabularies for different features
+    stop_list = get_stop_list(os.path.dirname(os.path.realpath(__file__)) + '/static_data/go-basic.obo')
+
     path_word_vocabulary = []
     words_between_entities_vocabulary = []
     dep_type_vocabulary = []
@@ -166,10 +168,13 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
         entity_pairs = candidate_sentence.get_entity_pairs()
 
         for pair in entity_pairs:
-            entity_1_token = test_sentence.get_token(pair[0][0])
-            entity_2_token = test_sentence.get_token(pair[1][0])
+            entity_1_token = candidate_sentence.get_token(pair[0][0])
+            entity_2_token = candidate_sentence.get_token(pair[1][0])
             entity_1 = set(entity_1_token.get_normalized_ner().split('|'))
             entity_2 = set(entity_2_token.get_normalized_ner().split('|'))
+
+            if len(entity_1.intersection(stop_list)) > 0 or len(entity_2.intersection(stop_list)) > 0 :
+                continue
 
             gene_to_gene = False
             if 'GENE' in entity_1_token.get_ner() and 'GENE' in entity_2_token.get_ner():
@@ -241,6 +246,7 @@ def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictio
     :return: assembled test instances
     """
     test_instances = []
+    stop_list = get_stop_list(os.path.dirname(os.path.realpath(__file__)) + '/static_data/go-basic.obo')
     for test_sentence in test_sentences:
         entity_pairs = test_sentence.get_entity_pairs()
 
@@ -250,6 +256,8 @@ def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictio
             entity_1 = set(entity_1_token.get_normalized_ner().split('|'))
             entity_2 = set(entity_2_token.get_normalized_ner().split('|'))
 
+            if len(entity_1.intersection(stop_list)) > 0 or len(entity_2.intersection(stop_list)) > 0 :
+                continue
 
             gene_to_gene = False
             if 'GENE' in entity_1_token.get_ner() and 'GENE' in entity_2_token.get_ner():
@@ -289,7 +297,7 @@ def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictio
 
     return test_instances
 
-def build_instances_predict(predict_sentences,dep_dictionary, dep_word_dictionary, dep_element_dictionary, between_word_dictionary,key_order, entity_1_list = None, entity_2_list = None,dep_path_type_dictionary=None):
+def build_instances_predict(predict_sentences,dep_dictionary, dep_word_dictionary, dep_element_dictionary, between_word_dictionary,key_order,dep_path_type_dictionary=None):
     """
     buld instances for predicting values
     :param predict_sentences:
@@ -304,6 +312,7 @@ def build_instances_predict(predict_sentences,dep_dictionary, dep_word_dictionar
     :return: prediciton instances
     """
     predict_instances = []
+    stop_list = get_stop_list(os.path.dirname(os.path.realpath(__file__)) + '/static_data/go-basic.obo')
     for p_sentence in predict_sentences:
 
         entity_pairs = p_sentence.get_entity_pairs()
@@ -311,27 +320,16 @@ def build_instances_predict(predict_sentences,dep_dictionary, dep_word_dictionar
         for pair in entity_pairs:
             entity_1_token = p_sentence.get_token(pair[0][0])
             entity_2_token = p_sentence.get_token(pair[1][0])
-            entity_1 = entity_1_token.get_normalized_ner().split('|')
-            entity_2 = entity_2_token.get_normalized_ner().split('|')
+            entity_1 = set(entity_1_token.get_normalized_ner().split('|'))
+            entity_2 = set(entity_2_token.get_normalized_ner().split('|'))
+
+            if len(entity_1.intersection(stop_list)) > 0 or len(entity_2.intersection(stop_list)) > 0 :
+                continue
 
             gene_to_gene = False
             if 'GENE' in entity_1_token.get_ner() and 'GENE' in entity_2_token.get_ner():
                 gene_to_gene = True
 
-            if entity_1_list is not None:
-                if len(set(entity_1).intersection(entity_1_list)) == 0:
-                    continue
-
-                #check if entity_2 overlaps with entity_1_list if so continue
-                if len(set(entity_2).intersection(entity_1_list)) > 0:
-                    continue
-
-            if entity_2_list is not None:
-                if len(set(entity_2).intersection(entity_2_list)) == 0:
-                    continue
-                #check if entity_1 overlaps with entity_2_list if so continue
-                if len(set(entity_1).intersection(entity_2_list)) > 0:
-                   continue
 
             forward_predict_instance = Instance(p_sentence, pair[0], pair[1], [-1]*len(key_order))
             if gene_to_gene is True:
@@ -794,8 +792,6 @@ def build_LSTM_test_instances_from_directory(directory_folder, entity_a, entity_
     return total_instances,total_dep_id_features,total_dep_word_features,total_dep_id_length,total_dep_word_length,total_labels
 
 def ontology_recurse(term,path,ontology_dict):
-    if term == 'GO:0008150' or term == 'GO:0005575' or term =='GO:0003674':
-        return path
     path.add(term)
     for t in ontology_dict[term]:
         path = ontology_recurse(t,path,ontology_dict)
@@ -868,3 +864,14 @@ def get_sentence_data_from_directory(directory_folder, entity_a, entity_b, suppl
                             entity_2_dict[e+'|'+entity_2_token.lemma]+=1
 
     return entity_1_dict,entity_2_dict
+
+def get_stop_list(filename):
+    stop_list = set()
+    if os.path.isfile(filename) is False:
+        return stop_list
+    with open(filename) as file:
+        for line in file:
+            stop_list.add(line.split()[0])
+    return stop_list
+
+
