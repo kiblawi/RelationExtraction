@@ -157,7 +157,7 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
     :return:
     """
     # initialize vocabularies for different features
-    stop_list = get_stop_list(os.path.dirname(os.path.realpath(__file__)) + '/static_data/go-basic.obo')
+    stop_list = get_stop_list(os.path.dirname(os.path.realpath(__file__)) + '/static_data/stop_list.txt')
 
     path_word_vocabulary = []
     words_between_entities_vocabulary = []
@@ -246,7 +246,7 @@ def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictio
     :return: assembled test instances
     """
     test_instances = []
-    stop_list = get_stop_list(os.path.dirname(os.path.realpath(__file__)) + '/static_data/go-basic.obo')
+    stop_list = get_stop_list(os.path.dirname(os.path.realpath(__file__)) + '/static_data/stop_list.txt')
     for test_sentence in test_sentences:
         entity_pairs = test_sentence.get_entity_pairs()
 
@@ -312,7 +312,7 @@ def build_instances_predict(predict_sentences,dep_dictionary, dep_word_dictionar
     :return: prediciton instances
     """
     predict_instances = []
-    stop_list = get_stop_list(os.path.dirname(os.path.realpath(__file__)) + '/static_data/go-basic.obo')
+    stop_list = get_stop_list(os.path.dirname(os.path.realpath(__file__)) + '/static_data/stop_list.txt')
     for p_sentence in predict_sentences:
 
         entity_pairs = p_sentence.get_entity_pairs()
