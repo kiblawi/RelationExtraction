@@ -173,7 +173,10 @@ def build_instances_training(candidate_sentences, distant_interactions,reverse_d
             entity_1 = set(entity_1_token.get_normalized_ner().split('|'))
             entity_2 = set(entity_2_token.get_normalized_ner().split('|'))
 
-            if len(entity_1.intersection(stop_list)) > 0 or len(entity_2.intersection(stop_list)) > 0 :
+            entity_1_lemma = set([s + '|' + entity_1_token.lemma for s in entity_1])
+            entity_2_lemma = set([s + '|' + entity_2_token.lemma for s in entity_2])
+
+            if len(entity_1_lemma.intersection(stop_list)) > 0 or len(entity_2_lemma.intersection(stop_list)) > 0 :
                 continue
 
             gene_to_gene = False
@@ -256,7 +259,10 @@ def build_instances_testing(test_sentences, dep_dictionary, dep_path_word_dictio
             entity_1 = set(entity_1_token.get_normalized_ner().split('|'))
             entity_2 = set(entity_2_token.get_normalized_ner().split('|'))
 
-            if len(entity_1.intersection(stop_list)) > 0 or len(entity_2.intersection(stop_list)) > 0 :
+            entity_1_lemma = set([s + '|' + entity_1_token.lemma for s in entity_1])
+            entity_2_lemma = set([s + '|' + entity_2_token.lemma for s in entity_2])
+
+            if len(entity_1_lemma.intersection(stop_list)) > 0 or len(entity_2_lemma.intersection(stop_list)) > 0:
                 continue
 
             gene_to_gene = False
@@ -323,7 +329,10 @@ def build_instances_predict(predict_sentences,dep_dictionary, dep_word_dictionar
             entity_1 = set(entity_1_token.get_normalized_ner().split('|'))
             entity_2 = set(entity_2_token.get_normalized_ner().split('|'))
 
-            if len(entity_1.intersection(stop_list)) > 0 or len(entity_2.intersection(stop_list)) > 0 :
+            entity_1_lemma = set([s + '|' + entity_1_token.lemma for s in entity_1])
+            entity_2_lemma = set([s + '|' + entity_2_token.lemma for s in entity_2])
+
+            if len(entity_1_lemma.intersection(stop_list)) > 0 or len(entity_2_lemma.intersection(stop_list)) > 0:
                 continue
 
             gene_to_gene = False
