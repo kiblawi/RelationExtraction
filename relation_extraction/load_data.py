@@ -855,22 +855,25 @@ def get_sentence_data_from_directory(directory_folder, entity_a, entity_b, suppl
                 xmlpath = os.path.join(path, name)
                 test_sentences, pmids = load_xml(xmlpath, entity_a, entity_b)
                 for test_sentence in test_sentences:
-                    entity_pairs = test_sentence.get_entity_pairs()
+                    entities = test_sentence.get_entities()
+                    if entity_a in entities:
+                        for phrase in entities[entity_a]:
+                            entity_a_phrase= '_'.join([test_sentence.get_token(word).lemma for word in phrase])
+                            entity_a_normalized = test_sentence.get_token(phrase[0]).get_normalized_ner()
+                            e_a = entity_a_normalized + '|' + entity_a_phrase
+                            if e_a not in entity_1_dict:
+                                entity_1_dict[e_a] = 0
+                            entity_1_dict[e_a]+=1
 
-                    for pair in entity_pairs:
-                        entity_1_token = test_sentence.get_token(pair[0][0])
-                        entity_2_token = test_sentence.get_token(pair[1][0])
-                        entity_1 = set(entity_1_token.get_normalized_ner().split('|'))
-                        entity_2 = set(entity_2_token.get_normalized_ner().split('|'))
+                        if entity_b in entities:
+                            for phrase in entities[entity_b]:
+                                entity_b_phrase = '_'.join([test_sentence.get_token(word).lemma for word in phrase])
+                                entity_b_normalized = test_sentence.get_token(phrase[0]).get_normalized_ner()
+                                e_b = entity_b_normalized + '|' + entity_b_phrase
+                                if e_b not in entity_2_dict:
+                                    entity_2_dict[e_b] = 0
+                                entity_2_dict[e_b] += 1
 
-                        for e in entity_1:
-                            if  e+'|'+ entity_1_token.lemma not in entity_1_dict:
-                                entity_1_dict[e+'|'+entity_1_token.lemma]= 0
-                            entity_1_dict[e+'|'+entity_1_token.lemma]+=1
-                        for e in entity_2:
-                            if e+'|'+entity_2_token.lemma not in entity_2_dict:
-                                entity_2_dict[e+'|'+entity_2_token.lemma]=0
-                            entity_2_dict[e+'|'+entity_2_token.lemma]+=1
 
     return entity_1_dict,entity_2_dict
 
