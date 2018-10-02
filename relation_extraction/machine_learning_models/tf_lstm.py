@@ -157,75 +157,76 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
     # keep probability for dropout layers
     keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
-    # embeddings for dependency types
     with tf.name_scope("dependency_type_embedding"):
-        W = tf.Variable(tf.random_uniform([num_dep_types, dep_embedding_dimension]), name="W")
-        embedded_dep = tf.nn.embedding_lookup(W, batch_dependency_ids)
+        print(num_dep_types)
+        W = tf.Variable(tf.concat([tf.random_uniform([num_dep_types-1, dep_embedding_dimension]),
+                                   tf.zeros([1,dep_embedding_dimension])],axis=0), name="W")
+        word_zeroes = tf.fill([tf.shape(batch_word_ids)[0],tf.shape(batch_word_ids)[1],word_embedding_dimension],0.0)
+        embedded_dep = tf.concat([word_zeroes,tf.nn.embedding_lookup(W, batch_dependency_ids)],axis = 2)
+        print(embedded_dep.shape)
+
         dep_embedding_saver = tf.train.Saver({"dep_embedding/W": W})
 
-    # embeddings for word2vec
+
     if word2vec_embeddings is not None:
         with tf.name_scope("dependency_word_embedding"):
             print('bionlp_word_embedding')
             W = tf.Variable(tf.constant(0.0, shape=[num_path_words, word_embedding_dimension]), name="W")
             embedding_placeholder = tf.placeholder(tf.float32, [num_path_words, word_embedding_dimension])
             embedding_init = W.assign(embedding_placeholder)
-            embedded_word = tf.nn.embedding_lookup(W, batch_word_ids)
+            dep_zeroes = tf.fill([tf.shape(batch_dependency_ids)[0],tf.shape(batch_dependency_ids)[1], dep_embedding_dimension],0.0)
+            embedded_word = tf.concat([tf.nn.embedding_lookup(W, batch_word_ids),dep_zeroes],axis=2)
+
             word_embedding_saver = tf.train.Saver({"dependency_word_embedding/W": W})
 
-    # randomized word embeddings
+
     else:
         with tf.name_scope("dependency_word_embedding"):
-            W = tf.Variable(tf.random_uniform([num_path_words, word_embedding_dimension]), name="W")
-            embedded_word = tf.nn.embedding_lookup(W, batch_word_ids)
+            W = tf.Variable(tf.concat([tf.random_uniform([num_path_words - 1, word_embedding_dimension]),
+                           tf.zeros([1, word_embedding_dimension])],axis=0), name="W")
+            dep_zeroes = tf.fill([tf.shape(batch_dependency_ids)[0],tf.shape(batch_dependency_ids)[1], dep_embedding_dimension],0.0)
+            embedded_word = tf.concat([tf.nn.embedding_lookup(W, batch_word_ids), dep_zeroes],axis=2)
             word_embedding_saver = tf.train.Saver({"dependency_word_embedding/W": W})
 
-    # dropout for word embeddings
     with tf.name_scope("word_dropout"):
         embedded_word_drop = tf.nn.dropout(embedded_word, keep_prob)
 
-    # iniitialize states for dependency LSTM
-    dependency_hidden_states = tf.zeros([tf.shape(batch_dependency_ids)[0], dep_state_size], name="dep_hidden_state")
-    dependency_cell_states = tf.zeros([tf.shape(batch_dependency_ids)[0], dep_state_size], name="dep_cell_state")
-    dependency_init_states = tf.nn.rnn_cell.LSTMStateTuple(dependency_hidden_states, dependency_cell_states)
+    concattenated = tf.concat([tf.expand_dims(embedded_word_drop,2),tf.expand_dims(embedded_dep,2)],2)
+    total_embedded = tf.reshape(concattenated,[-1,200,word_embedding_dimension+dep_embedding_dimension])
 
-    # initialize states for word LSTM
-    word_hidden_state = tf.zeros([tf.shape(batch_word_ids)[0], word_state_size], name='word_hidden_state')
-    word_cell_state = tf.zeros([tf.shape(batch_word_ids)[0], word_state_size], name='word_cell_state')
-    word_init_state = tf.nn.rnn_cell.LSTMStateTuple(word_hidden_state, word_cell_state)
+    total_sequence_length = tf.add(batch_dep_word_length,batch_dependency_type_length)
 
-    with tf.variable_scope("dependency_lstm"):
-        cell = tf.contrib.rnn.LSTMBlockFusedCell(dep_state_size)
-        state_series, current_state = cell(tf.transpose(embedded_dep,[1,0,2]),initial_state=dependency_init_states,
-                                           sequence_length=batch_dependency_type_length)
-        state_series_dep = tf.reduce_max(state_series, axis=0)
+    initial_hidden_state = tf.zeros([tf.shape(batch_dependency_ids)[0],word_state_size+dep_state_size],name="hidden_state")
+    initial_cell_state = tf.zeros([tf.shape(batch_dependency_ids)[0], word_state_size+dep_state_size],
+                                    name="cell_state")
+    init_states = tf.nn.rnn_cell.LSTMStateTuple(initial_cell_state, initial_hidden_state)
 
-    with tf.variable_scope("word_lstm"):
-        cell = tf.contrib.rnn.LSTMBlockFusedCell(word_state_size)
-        state_series, current_state = cell(tf.transpose(embedded_word_drop,[1,0,2]), initial_state=word_init_state,
-                                           sequence_length=batch_dep_word_length)
-        state_series_word = tf.reduce_max(state_series, axis=0)
+    with tf.variable_scope('lstm'):
+        cell = tf.contrib.rnn.LSTMBlockFusedCell(word_state_size+dep_state_size)
+        state_series, output_state = cell(tf.transpose(total_embedded, [1, 0, 2]), initial_state=init_states,
+                                           sequence_length=total_sequence_length)
 
-    state_series = tf.concat([state_series_dep, state_series_word], 1)
+        state_series_final = output_state[1]
 
-    # hidden layer for classification
+        #state_series = tf.concat([state_series_dep, state_series_word], 1)
+
+
     with tf.name_scope("hidden_layer"):
-        W = tf.Variable(tf.truncated_normal([dep_state_size + word_state_size, 100], -0.1, 0.1), name="W")
+        W = tf.Variable(tf.truncated_normal([word_state_size + dep_state_size, 100], -0.1, 0.1), name="W")
         b = tf.Variable(tf.zeros([100]), name="b")
-        y_hidden_layer = tf.matmul(state_series, W) + b
+        y_hidden_layer = tf.matmul(state_series_final, W) + b
 
-    # dropout for hidden layer
+
     with tf.name_scope("dropout"):
         y_hidden_layer_drop = tf.nn.dropout(y_hidden_layer, keep_prob)
 
-    # sigmoid layer
+
     with tf.name_scope("sigmoid_layer"):
         W = tf.Variable(tf.truncated_normal([100, num_labels], -0.1, 0.1), name="W")
         b = tf.Variable(tf.zeros([num_labels]), name="b")
         logits = tf.matmul(y_hidden_layer_drop, W) + b
-    prob_yhat = tf.nn.sigmoid(logits, name='predict_prob') # probability after feeding forward
-    class_yhat = tf.to_int32(prob_yhat > 0.5, name='class_predict') # class threshold
-
+    prob_yhat = tf.nn.sigmoid(logits, name='predict_prob')
+    class_yhat = tf.to_int32(prob_yhat > 0.5,name='class_predict')
     # calculating loss values
     tv_all = tf.trainable_variables()
     tv_regu = []
