@@ -94,7 +94,7 @@ def feed_forward_train(train_dataset_files, hidden_array, model_dir, num_feature
     # network parameters
     num_labels = len(key_order)
     num_epochs = 250
-    batch_size = 1024
+    batch_size = 256
     num_hidden_layers = len(hidden_array)
 
     # build training dataset
