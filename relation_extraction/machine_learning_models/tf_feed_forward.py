@@ -186,7 +186,7 @@ def feed_forward_train(train_dataset_files, hidden_array, model_dir, num_feature
         train_writer = tf.summary.FileWriter(model_dir + '/train', graph=tf.get_default_graph())
         test_writer = tf.summary.FileWriter(model_dir + '/test')
 
-        for epoch in num_epochs:
+        for epoch in range(num_epochs):
             train_handle = sess.run(train_iter.string_handle())
             sess.run(train_iter.initializer)
 
