@@ -165,12 +165,10 @@ def feed_forward_train(train_dataset_files, hidden_array, model_dir, num_feature
     global_step = tf.Variable(0, name="global_step")
     #calculate cost and update network via backpropogation with gradientdescent
     cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels=batch_labels, logits=yhat))
-    tf.summary.scalar('cost', cost)
-    updates = tf.train.AdamOptimizer().minimize(cost)
+    updates = tf.train.AdamOptimizer().minimize(cost,global_step=global_step)
 
     correct_prediction = tf.equal(tf.round(prob_yhat), tf.round(batch_labels))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-    tf.summary.scalar('accuracy', accuracy)
 
     saver = tf.train.Saver()
     # Run stochastic gradient descent
@@ -208,6 +206,7 @@ def feed_forward_train(train_dataset_files, hidden_array, model_dir, num_feature
 
             while True:
                 try:
+                    step+=1
                     tl_val,ta_val, predicted_class, b_labels = sess.run([cost,accuracy, class_yhat, batch_labels],
                                                                   feed_dict={
                                                                       iterator_handle: train_accuracy_handle,
@@ -245,10 +244,12 @@ def feed_forward_train(train_dataset_files, hidden_array, model_dir, num_feature
                 sess.run(test_iter.initializer)
                 test_y_predict_total = np.array([])
                 test_y_label_total = np.array([])
+                test_step = 0
                 test_loss_value = 0
                 test_accuracy_value = 0
                 while True:
                     try:
+                        test_step+=1
                         test_loss, test_accuracy, batch_test_predict, batch_test_labels = sess.run(
                             [cost, accuracy, class_yhat, batch_labels], feed_dict={
                                 iterator_handle: test_handle, keep_prob: 1.0})
@@ -263,8 +264,8 @@ def feed_forward_train(train_dataset_files, hidden_array, model_dir, num_feature
                 test_y_predict_total = test_y_predict_total.reshape((test_instances_count, 1))
                 test_y_label_total = test_y_label_total.reshape((test_instances_count, 1))
 
-                test_accuracy_value = test_accuracy_value / step
-                test_loss_value = test_loss_value / step
+                test_accuracy_value = test_accuracy_value / test_step
+                test_loss_value = test_loss_value / test_step
                 test_acc_summary = tf.Summary()
                 test_loss_summary = tf.Summary()
                 test_acc_summary.value.add(tag='Accuracy', simple_value=test_accuracy_value)
