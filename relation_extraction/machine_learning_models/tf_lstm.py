@@ -241,11 +241,9 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
         l2_loss = lambda_l2 * tf.reduce_sum([tf.nn.l2_loss(v) for v in tv_regu])
         loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=batch_labels))
         total_loss = loss + l2_loss
-        tf.summary.scalar('total_loss',total_loss)
 
     correct_prediction = tf.equal(tf.round(prob_yhat), tf.round(batch_labels))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-    tf.summary.scalar('accuracy', accuracy)
 
 
 
@@ -290,6 +288,7 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
 
             while True:
                 try:
+                    step+=1
                     tl_val, ta_val, predicted_class, b_labels = sess.run([loss, accuracy, class_yhat, batch_labels],
                                                                          feed_dict={
                                                                              iterator_handle: train_accuracy_handle,
@@ -327,10 +326,12 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
                 sess.run(test_iter.initializer)
                 test_y_predict_total = np.array([])
                 test_y_label_total = np.array([])
+                test_step = 0
                 test_loss_value = 0
                 test_accuracy_value = 0
                 while True:
                     try:
+                        test_step+=1
                         test_loss, test_accuracy, batch_test_predict, batch_test_labels = sess.run(
                             [total_loss, accuracy, class_yhat, batch_labels], feed_dict={
                                 iterator_handle: test_handle, keep_prob: 1.0})
@@ -345,8 +346,8 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
                 test_y_predict_total = test_y_predict_total.reshape((test_instances_count, 1))
                 test_y_label_total = test_y_label_total.reshape((test_instances_count, 1))
 
-                test_accuracy_value = test_accuracy_value / step
-                test_loss_value = test_loss_value / step
+                test_accuracy_value = test_accuracy_value / test_step
+                test_loss_value = test_loss_value / test_step
                 test_acc_summary = tf.Summary()
                 test_loss_summary = tf.Summary()
                 test_acc_summary.value.add(tag='Accuracy', simple_value=test_accuracy_value)
