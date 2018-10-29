@@ -105,7 +105,7 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
     dep_state_size = 50
     num_labels = len(key_order)
     num_epochs = 250
-    batch_size = 512
+    batch_size = 128
 
     # build training dataset
     dataset = tf.data.TFRecordDataset(train_dataset_files)
