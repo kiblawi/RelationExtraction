@@ -267,7 +267,7 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
             print('using word2vec embeddings')
             sess.run(embedding_init, feed_dict={embedding_placeholder: word2vec_embeddings})
 
-        for epoch in num_epochs:
+        for epoch in range(num_epochs):
             train_handle = sess.run(train_iter.string_handle())
             sess.run(train_iter.initializer)
 
