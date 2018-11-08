@@ -363,6 +363,8 @@ def lstm_train(train_dataset_files, num_dep_types,num_path_words, model_dir, key
                     print("Epoch = %d,Test Label = %s: %.2f%% "
                           % (epoch, key_order[l], 100. * label_accuracy))
 
+        save_path = saver.save(sess, model_dir)
+
     return save_path
 
 def lstm_test(test_dep_path_list_features,test_dep_word_features,test_dep_type_path_length,test_dep_word_path_length, test_labels,model_file):
